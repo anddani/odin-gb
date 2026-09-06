@@ -1,0 +1,12 @@
+# Odin build artifacts
+*.bin
+*.exe
+*.o
+*.obj
+/odin-gb
+/main
+
+# direnv
+.direnv/
+
+.envrc
