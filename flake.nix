@@ -14,8 +14,9 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            odin # the Odin compiler
-            ols  # Odin language server (editor integration)
+            odin   # the Odin compiler
+            ols    # Odin language server (editor integration)
+            raylib # system raylib; vendor:raylib links against it
           ];
 
           shellHook = ''
