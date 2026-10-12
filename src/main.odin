@@ -1,6 +1,10 @@
 package main
 
+import "core:fmt"
+import "core:os"
 import rl "vendor:raylib"
+
+import "cart"
 
 WIDTH :: 160
 HEIGHT :: 144
@@ -19,7 +23,26 @@ make_image :: proc(fb: ^Framebuffer) -> rl.Image {
 	}
 }
 
+
 main :: proc() {
+	if len(os.args) < 2 {
+		fmt.println("Provide path to rom")
+		os.exit(1)
+	}
+
+	rom_path := os.args[1]
+
+	c, err := cart.cart_from_file(rom_path)
+
+	if err != cart.Cart_Error.None {
+		fmt.printf("Error reading cart from path %s: %s\n", rom_path, err)
+		os.exit(1)
+	}
+
+	fmt.println("Cart rom len:", len(c.rom))
+	defer cart.cart_destroy(&c)
+
+
 	rl.InitWindow(WIDTH * SCALE, HEIGHT * SCALE, "GameBoy Emulator")
 	rl.SetTargetFPS(FPS)
 
