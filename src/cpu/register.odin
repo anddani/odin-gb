@@ -1,5 +1,20 @@
 package cpu
 
+read_reg :: proc(c: ^Cpu, code: u8) -> u8 {
+	if code == 6 {
+		return read8(&c.bus, get_hl(c))
+	}
+	return c.regs[Reg(code)]
+}
+
+write_reg :: proc(c: ^Cpu, code: u8, value: u8) {
+	if code == 6 {
+		write8(&c.bus, get_hl(c), value)
+		return
+	}
+	c.regs[Reg(code)] = value
+}
+
 get_af :: proc(c: ^Cpu) -> u16 {
 	return u16(c.regs[.A]) << 8 | u16(c.flags)
 }
