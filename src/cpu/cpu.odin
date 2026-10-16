@@ -105,8 +105,7 @@ fetch8 :: proc(c: ^Cpu) -> u8 {
 }
 
 fetch16 :: proc(c: ^Cpu) -> u16 {
-	lo := u16(c.bus.read(c.bus.ctx, c.pc))
-	hi := u16(c.bus.read(c.bus.ctx, c.pc + 1))
-	c.pc += 2
+	lo := u16(fetch8(c))
+	hi := u16(fetch8(c))
 	return (hi << 8) | lo
 }
