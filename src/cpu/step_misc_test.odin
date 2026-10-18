@@ -1,0 +1,185 @@
+package cpu
+
+import "core:testing"
+
+// Opcodes: INC B = 0x04, INC (HL) = 0x34; DEC B = 0x05, DEC (HL) = 0x35.
+// Reuses Test_Mem / make_test_cpu from cpu_test.odin (same package).
+
+@(test)
+test_inc_half_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.B] = 0x0F
+	cycles := misc(&c, 0x04)
+	testing.expect_value(t, c.regs[.B], u8(0x10))
+	testing.expect(t, c.flags.h && !c.flags.z && !c.flags.n, "INC 0x0F: H set, Z/N clear")
+	testing.expect_value(t, cycles, 4)
+}
+
+@(test)
+test_inc_wrap_to_zero :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.B] = 0xFF
+	misc(&c, 0x04)
+	testing.expect_value(t, c.regs[.B], u8(0x00))
+	testing.expect(t, c.flags.z && c.flags.h, "INC 0xFF: Z and H set")
+}
+
+@(test)
+test_inc_preserves_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	c.flags.c = true
+	c.regs[.B] = 0x01
+	misc(&c, 0x04)
+	testing.expect_value(t, c.regs[.B], u8(0x02))
+	testing.expect(t, c.flags.c, "INC must preserve C")
+	testing.expect(t, !c.flags.h, "0x01 INC: no half carry")
+}
+
+@(test)
+test_inc_hl_memory_and_cycles :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	set_hl(&c, 0xC000)
+	m.data[0xC000] = 0x0F
+	cycles := misc(&c, 0x34) // INC (HL)
+	testing.expect_value(t, m.data[0xC000], u8(0x10))
+	testing.expect(t, c.flags.h, "INC (HL) 0x0F: H set")
+	testing.expect_value(t, cycles, 12)
+}
+
+@(test)
+test_dec_half_borrow :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.B] = 0x10
+	cycles := misc(&c, 0x05)
+	testing.expect_value(t, c.regs[.B], u8(0x0F))
+	testing.expect(t, c.flags.n && c.flags.h && !c.flags.z, "DEC 0x10: N,H set, not zero")
+	testing.expect_value(t, cycles, 4)
+}
+
+@(test)
+test_dec_to_zero :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.B] = 0x01
+	misc(&c, 0x05)
+	testing.expect_value(t, c.regs[.B], u8(0x00))
+	testing.expect(t, c.flags.z && c.flags.n && !c.flags.h, "DEC to 0: Z,N set, H clear")
+}
+
+@(test)
+test_dec_wrap :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.B] = 0x00
+	misc(&c, 0x05)
+	testing.expect_value(t, c.regs[.B], u8(0xFF))
+	testing.expect(t, c.flags.h && !c.flags.z, "DEC 0x00: H set (borrow), not zero")
+}
+
+@(test)
+test_dec_preserves_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	c.flags.c = true
+	c.regs[.B] = 0x05
+	misc(&c, 0x05)
+	testing.expect(t, c.flags.c, "DEC must preserve C")
+}
+
+@(test)
+test_dec_hl_memory_and_cycles :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	set_hl(&c, 0xC000)
+	m.data[0xC000] = 0x01
+	cycles := misc(&c, 0x35) // DEC (HL)
+	testing.expect_value(t, m.data[0xC000], u8(0x00))
+	testing.expect(t, c.flags.z && c.flags.n, "DEC (HL) to 0: Z,N set")
+	testing.expect_value(t, cycles, 12)
+}
+
+// ADD HL,rr -- opcodes 0x09/0x19/0x29/0x39 (BC/DE/HL/SP).
+
+// Reads the correct pair (DE, not BC) -- guards the get_rp operand.
+@(test)
+test_add_hl_reads_correct_pair :: proc(t: ^testing.T) {
+	c: Cpu
+	set_hl(&c, 0x0001)
+	set_de(&c, 0x0002)
+	cycles := misc(&c, 0x19) // ADD HL,DE
+	testing.expect_value(t, get_hl(&c), u16(0x0003))
+	testing.expect_value(t, cycles, 8)
+}
+
+@(test)
+test_add_hl_half_carry_bit11 :: proc(t: ^testing.T) {
+	c: Cpu
+	set_hl(&c, 0x0FFF)
+	set_bc(&c, 0x0001)
+	misc(&c, 0x09) // ADD HL,BC
+	testing.expect_value(t, get_hl(&c), u16(0x1000))
+	testing.expect(t, c.flags.h && !c.flags.c && !c.flags.n, "bit-11 carry sets H only")
+}
+
+@(test)
+test_add_hl_carry_bit15 :: proc(t: ^testing.T) {
+	c: Cpu
+	set_hl(&c, 0xFFFF)
+	set_bc(&c, 0x0001)
+	misc(&c, 0x09)
+	testing.expect_value(t, get_hl(&c), u16(0x0000)) // wraps
+	testing.expect(t, c.flags.c && c.flags.h, "bit-15 overflow: C and H set")
+}
+
+// Z must be preserved: a result of 0x0000 must NOT set Z.
+@(test)
+test_add_hl_preserves_z :: proc(t: ^testing.T) {
+	c: Cpu
+	c.flags.z = false
+	set_hl(&c, 0xFFFF)
+	set_bc(&c, 0x0001) // result 0x0000
+	misc(&c, 0x09)
+	testing.expect(t, !c.flags.z, "ADD HL,rr must not touch Z even when result is 0")
+
+	c.flags.z = true
+	set_hl(&c, 0x0001)
+	set_bc(&c, 0x0001)
+	misc(&c, 0x09)
+	testing.expect(t, c.flags.z, "ADD HL,rr must leave a set Z alone")
+}
+
+@(test)
+test_add_hl_sp_and_self :: proc(t: ^testing.T) {
+	c: Cpu
+	set_hl(&c, 0x0010)
+	c.sp = 0x0020
+	misc(&c, 0x39) // ADD HL,SP
+	testing.expect_value(t, get_hl(&c), u16(0x0030))
+
+	set_hl(&c, 0x1234)
+	misc(&c, 0x29) // ADD HL,HL (double)
+	testing.expect_value(t, get_hl(&c), u16(0x2468))
+}
+
+// INC rr / DEC rr -- 0x03/0x13/0x23/0x33 (INC), 0x0B/0x1B/0x2B/0x3B (DEC).
+
+@(test)
+test_inc_rr_wraps_and_preserves_flags :: proc(t: ^testing.T) {
+	c: Cpu
+	c.flags = transmute(Flags)u8(0xF0) // all flags set
+	set_hl(&c, 0xFFFF)
+	cycles := misc(&c, 0x23) // INC HL
+	testing.expect_value(t, get_hl(&c), u16(0x0000)) // wraps
+	testing.expect(t, c.flags.z && c.flags.n && c.flags.h && c.flags.c, "INC rr must not touch flags")
+	testing.expect_value(t, cycles, 8)
+}
+
+@(test)
+test_dec_rr_wraps_and_selects_pair :: proc(t: ^testing.T) {
+	c: Cpu
+	set_bc(&c, 0x0000)
+	misc(&c, 0x0B) // DEC BC
+	testing.expect_value(t, get_bc(&c), u16(0xFFFF)) // wraps, correct pair
+
+	set_de(&c, 0x0100)
+	misc(&c, 0x1B) // DEC DE
+	testing.expect_value(t, get_de(&c), u16(0x00FF))
+}

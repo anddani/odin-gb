@@ -45,7 +45,7 @@ step :: proc(c: ^Cpu) -> int {
 	// Relative jumps, 16-bit LD/INC/DEC,
 	// 8-bit INC/DEC, LD r,d8, rotates
 	case 0:
-		return 4
+		return misc(c, op)
 
 	// LD r,r'
 	case 1:

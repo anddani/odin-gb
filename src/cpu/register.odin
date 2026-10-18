@@ -50,3 +50,34 @@ set_hl :: proc(c: ^Cpu, value: u16) {
 	c.regs[.H] = u8(value >> 8)
 	c.regs[.L] = u8(value & 0xFF)
 }
+
+get_rp :: proc(c: ^Cpu, code: u8) -> u16 {
+	idx := (code >> 4) & 0b11
+	switch idx {
+	case 0:
+		return get_bc(c)
+	case 1:
+		return get_de(c)
+	case 2:
+		return get_hl(c)
+	case 3:
+		return c.sp
+
+	case:
+		return 0
+	}
+}
+
+set_rp :: proc(c: ^Cpu, code: u8, value: u16) {
+	idx := (code >> 4) & 0b11
+	switch idx {
+	case 0:
+		set_bc(c, value)
+	case 1:
+		set_de(c, value)
+	case 2:
+		set_hl(c, value)
+	case 3:
+		c.sp = value
+	}
+}
