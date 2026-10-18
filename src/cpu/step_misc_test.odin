@@ -183,3 +183,43 @@ test_dec_rr_wraps_and_selects_pair :: proc(t: ^testing.T) {
 	misc(&c, 0x1B) // DEC DE
 	testing.expect_value(t, get_de(&c), u16(0x00FF))
 }
+
+// LD (rr),A / LD A,(rr) -- 0x02/12/22/32 (store), 0x0A/1A/2A/3A (load).
+
+@(test)
+test_ld_bc_store_and_de_load :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.regs[.A] = 0x7E
+	set_bc(&c, 0xC000)
+	cycles := misc(&c, 0x02) // LD (BC),A
+	testing.expect_value(t, m.data[0xC000], u8(0x7E))
+	testing.expect_value(t, cycles, 8)
+
+	m.data[0xC050] = 0x3C
+	set_de(&c, 0xC050)
+	misc(&c, 0x1A) // LD A,(DE)
+	testing.expect_value(t, c.regs[.A], u8(0x3C))
+}
+
+@(test)
+test_ld_hli_store_increments_hl :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.regs[.A] = 0x11
+	set_hl(&c, 0xC000)
+	misc(&c, 0x22) // LD (HL+),A
+	testing.expect_value(t, m.data[0xC000], u8(0x11)) // written at old HL
+	testing.expect_value(t, get_hl(&c), u16(0xC001)) // HL incremented after
+}
+
+@(test)
+test_ld_hld_load_decrements_hl :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	m.data[0xC005] = 0x99
+	set_hl(&c, 0xC005)
+	misc(&c, 0x3A) // LD A,(HL-)
+	testing.expect_value(t, c.regs[.A], u8(0x99)) // read from old HL
+	testing.expect_value(t, get_hl(&c), u16(0xC004)) // HL decremented after
+}

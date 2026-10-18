@@ -1,9 +1,30 @@
 package cpu
 
+// Returns the address and applies HL++/HL-- side effect
+addr_rr :: proc(c: ^Cpu, op: u8) -> u16 {
+	addr: u16
+	idx := (op >> 4) & 0b11
+
+	switch idx {
+	case 0:
+		addr = get_bc(c)
+	case 1:
+		addr = get_de(c)
+	case 2:
+		addr = get_hl(c)
+		set_hl(c, addr + 1)
+	case 3:
+		addr = get_hl(c)
+		set_hl(c, addr - 1)
+	}
+	return addr
+}
+
 misc :: proc(c: ^Cpu, op: u8) -> int {
 	dst := (op & 0b00111000) >> 3
 	z := op & 0b00000111
 	cycle_count := 4
+	bit_3 := op & 0b00001000
 
 	switch z {
 	// NOP
@@ -12,7 +33,7 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 	// LD rr,d16
 	// ADD HL,rr
 	case 1:
-		if op & 0b00001000 == 0 {
+		if bit_3 == 0 {
 			// LD rr,d16
 			value := fetch16(c)
 			set_rp(c, op, value)
@@ -29,12 +50,25 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 			cycle_count = 8
 		}
 
+	// LD (rr),A store
+	// LD A,(rr) read
 	case 2:
+		if bit_3 == 0 {
+			// LD (rr),A store
+			addr := addr_rr(c, op)
+			write8(&c.bus, addr, c.regs[.A])
+		} else {
+			// LD A,(rr) read
+			addr := addr_rr(c, op)
+			c.regs[.A] = read8(&c.bus, addr)
+		}
+		cycle_count = 8
+
 
 	// INC rr
 	// DEC rr
 	case 3:
-		if op & 0b00001000 == 0 {
+		if bit_3 == 0 {
 			// INC rr
 			set_rp(c, op, get_rp(c, op) + 1)
 		} else {
