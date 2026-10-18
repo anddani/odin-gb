@@ -1,5 +1,7 @@
 package cpu
 
+import "core:math/bits"
+
 // Returns the address and applies HL++/HL-- side effect
 addr_rr :: proc(c: ^Cpu, op: u8) -> u16 {
 	addr: u16
@@ -106,6 +108,39 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 		write_reg(c, dst, value)
 
 	case 7:
+		switch dst {
+		// RLCA
+		case 0:
+			acc := c.regs[.A]
+			c.flags.z = false
+			c.flags.n = false
+			c.flags.h = false
+			c.flags.c = acc & 0b1000_0000 > 0
+			c.regs[.A] = bits.rotate_left8(acc, 1)
+		// RRCA
+		case 1:
+			acc := c.regs[.A]
+			c.flags.z = false
+			c.flags.n = false
+			c.flags.h = false
+			c.flags.c = acc & 0b0000_0001 > 0
+			c.regs[.A] = bits.rotate_left8(acc, 7)
+		// RLA
+		case 2:
+			c.flags.z = false
+		// RRA
+		case 3:
+			c.flags.z = false
+		// DAA
+		case 4:
+		// CPL
+		case 5:
+		// SCF
+		case 6:
+		// CCF
+		case 7:
+		}
+
 	}
 
 	return cycle_count
