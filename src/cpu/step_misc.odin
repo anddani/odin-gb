@@ -146,12 +146,24 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 
 		// DAA
 		case 4:
+
 		// CPL
 		case 5:
+			c.flags.n = true
+			c.flags.h = true
+			c.regs[.A] = ~c.regs[.A]
+
 		// SCF
 		case 6:
+			c.flags.c = true
+			c.flags.n = false
+			c.flags.h = false
+
 		// CCF
 		case 7:
+			c.flags.c = !c.flags.c
+			c.flags.n = false
+			c.flags.h = false
 		}
 
 	}
