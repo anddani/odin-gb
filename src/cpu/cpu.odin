@@ -38,6 +38,7 @@ Cpu :: struct {
 	pc:    u16,
 }
 
+
 step :: proc(c: ^Cpu) -> int {
 	op := fetch8(c)
 	switch (op >> 6) {
@@ -48,23 +49,11 @@ step :: proc(c: ^Cpu) -> int {
 
 	// LD r,r'
 	case 1:
-		// Special handling for HALT operation
-		if op == 0x76 {
-			c.halt = true
-			return 4
-		}
-
-		dst := (op & 0b00111000) >> 3
-		src := (op & 0b00000111)
-		cycle_count := dst == 6 || src == 6 ? 8 : 4
-
-		write_reg(c, dst, read_reg(c, src))
-
-		return cycle_count
+		return ld(c, op)
 
 	// ALU A,r
 	case 2:
-		return 4
+		return alu(c, op)
 
 	// Conditional RET/JP/CALL, PUSH/POP, RST,
 	// CB prefix, ALU A,d8, LDH
