@@ -108,29 +108,42 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 		write_reg(c, dst, value)
 
 	case 7:
+		acc := c.regs[.A]
 		switch dst {
 		// RLCA
 		case 0:
-			acc := c.regs[.A]
 			c.flags.z = false
 			c.flags.n = false
 			c.flags.h = false
-			c.flags.c = acc & 0b1000_0000 > 0
+			c.flags.c = acc & 0x80 > 0
 			c.regs[.A] = bits.rotate_left8(acc, 1)
+
 		// RRCA
 		case 1:
-			acc := c.regs[.A]
 			c.flags.z = false
 			c.flags.n = false
 			c.flags.h = false
-			c.flags.c = acc & 0b0000_0001 > 0
+			c.flags.c = acc & 0x01 > 0
 			c.regs[.A] = bits.rotate_left8(acc, 7)
+
 		// RLA
 		case 2:
+			old_c := c.flags.c
+			c.flags.c = acc & 0x80 > 0
 			c.flags.z = false
+			c.flags.n = false
+			c.flags.h = false
+			c.regs[.A] = bits.rotate_left8(acc, 1) | u8(old_c)
+
 		// RRA
 		case 3:
+			old_c := c.flags.c
+			c.flags.c = acc & 0x01 > 0
 			c.flags.z = false
+			c.flags.n = false
+			c.flags.h = false
+			c.regs[.A] = (acc >> 1) | (old_c ? 0x80 : 0x00)
+
 		// DAA
 		case 4:
 		// CPL
