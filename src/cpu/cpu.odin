@@ -48,7 +48,7 @@ step :: proc(c: ^Cpu) -> int {
 
 	// LD r,r'
 	case 1:
-		// Special handlign for HALT operation
+		// Special handling for HALT operation
 		if op == 0x76 {
 			c.halt = true
 			return 4
