@@ -133,7 +133,7 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 			c.flags.z = false
 			c.flags.n = false
 			c.flags.h = false
-			c.regs[.A] = bits.rotate_left8(acc, 1) | u8(old_c)
+			c.regs[.A] = (acc << 1) | u8(old_c)
 
 		// RRA
 		case 3:

@@ -223,3 +223,59 @@ test_ld_hld_load_decrements_hl :: proc(t: ^testing.T) {
 	testing.expect_value(t, c.regs[.A], u8(0x99)) // read from old HL
 	testing.expect_value(t, get_hl(&c), u16(0xC004)) // HL decremented after
 }
+
+// Accumulator rotates: RLCA=0x07, RRCA=0x0F, RLA=0x17, RRA=0x1F.
+// All keep Z=N=H=0. RLCA/RRCA are circular; RLA/RRA go through carry.
+
+@(test)
+test_rlca_circular :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x85 // 1000_0101
+	misc(&c, 0x07)
+	testing.expect_value(t, c.regs[.A], u8(0x0B)) // 0000_1011, bit7 wraps to bit0
+	testing.expect(t, c.flags.c, "RLCA: C = old bit 7")
+	testing.expect(t, !c.flags.z && !c.flags.n && !c.flags.h, "RLCA: Z/N/H clear")
+}
+
+@(test)
+test_rrca_circular :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x01
+	misc(&c, 0x0F)
+	testing.expect_value(t, c.regs[.A], u8(0x80)) // bit0 wraps to bit7
+	testing.expect(t, c.flags.c, "RRCA: C = old bit 0")
+}
+
+@(test)
+test_rla_through_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	// old bit 7 goes to carry, must NOT wrap into bit 0
+	c.regs[.A] = 0x80
+	c.flags.c = false
+	misc(&c, 0x17)
+	testing.expect_value(t, c.regs[.A], u8(0x00)) // not 0x01
+	testing.expect(t, c.flags.c, "RLA: new C = old bit 7")
+	testing.expect(t, !c.flags.z, "RLA: Z stays 0 even when result is 0")
+
+	c.regs[.A] = 0x01
+	c.flags.c = true
+	misc(&c, 0x17)
+	testing.expect_value(t, c.regs[.A], u8(0x03)) // old carry fills bit 0
+	testing.expect(t, !c.flags.c, "RLA: new C = old bit 7 (0)")
+}
+
+@(test)
+test_rra_through_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x80
+	c.flags.c = true
+	misc(&c, 0x1F)
+	testing.expect_value(t, c.regs[.A], u8(0xC0)) // old carry fills bit 7
+	testing.expect(t, !c.flags.c, "RRA: new C = old bit 0 (0)")
+
+	c.regs[.A] = 0x01
+	c.flags.c = false
+	misc(&c, 0x1F)
+	testing.expect_value(t, c.regs[.A], u8(0x00))
+	testing.expect(t, c.flags.c, "RRA: new C = old bit 0 (1)")
+}
