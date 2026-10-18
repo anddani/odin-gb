@@ -146,6 +146,24 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 
 		// DAA
 		case 4:
+			if c.flags.n {
+				if c.flags.c {
+					c.regs[.A] -= 0x60
+				}
+				if c.flags.h {
+					c.regs[.A] -= 0x06
+				}
+			} else {
+				if c.flags.c || c.regs[.A] > 0x99 {
+					c.regs[.A] += 0x60
+					c.flags.c = true
+				}
+				if c.flags.h || (c.regs[.A] & 0x0F) > 0x09 {
+					c.regs[.A] += 0x06
+				}
+			}
+			c.flags.z = c.regs[.A] == 0
+			c.flags.h = false
 
 		// CPL
 		case 5:

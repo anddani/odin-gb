@@ -279,3 +279,65 @@ test_rra_through_carry :: proc(t: ^testing.T) {
 	testing.expect_value(t, c.regs[.A], u8(0x00))
 	testing.expect(t, c.flags.c, "RRA: new C = old bit 0 (1)")
 }
+
+// DAA = 0x27. Corrects A to packed BCD using N/H/C from the previous op.
+
+@(test)
+test_daa_add_low_nibble :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x0A // low nibble > 9
+	misc(&c, 0x27)
+	testing.expect_value(t, c.regs[.A], u8(0x10))
+	testing.expect(t, !c.flags.c && !c.flags.h, "no carry, H cleared")
+}
+
+@(test)
+test_daa_add_half_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x10 // BCD 9+7 = binary 0x10 with H
+	c.flags.h = true
+	misc(&c, 0x27)
+	testing.expect_value(t, c.regs[.A], u8(0x16)) // BCD "16"
+}
+
+@(test)
+test_daa_add_high_nibble_sets_carry :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x10 // BCD 90+80 = 0x110 -> 0x10 with C
+	c.flags.c = true
+	misc(&c, 0x27)
+	testing.expect_value(t, c.regs[.A], u8(0x70)) // BCD "70" + carry
+	testing.expect(t, c.flags.c, "decimal carry out")
+}
+
+@(test)
+test_daa_add_over_99_is_zero :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0xA0 // high nibble > 9
+	misc(&c, 0x27)
+	testing.expect_value(t, c.regs[.A], u8(0x00))
+	testing.expect(t, c.flags.c && c.flags.z, "carry set, zero result")
+}
+
+@(test)
+test_daa_sub_half_borrow :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0x0F // BCD 10-01 = binary 0x0F with N,H
+	c.flags.n = true
+	c.flags.h = true
+	misc(&c, 0x27)
+	testing.expect_value(t, c.regs[.A], u8(0x09)) // BCD "09"
+	testing.expect(t, c.flags.n && !c.flags.c, "N preserved, C unchanged")
+}
+
+@(test)
+test_daa_sub_with_borrow :: proc(t: ^testing.T) {
+	c: Cpu
+	c.regs[.A] = 0xFF // BCD 00-01 = binary 0xFF with N,H,C
+	c.flags.n = true
+	c.flags.h = true
+	c.flags.c = true
+	misc(&c, 0x27)
+	testing.expect_value(t, c.regs[.A], u8(0x99)) // BCD "99" (borrow)
+	testing.expect(t, c.flags.c, "C stays set in sub path")
+}
