@@ -111,11 +111,19 @@ cb :: proc(c: ^Cpu) -> int {
 		c.flags.h = false
 		c.flags.c = carry
 
+	// BIT y
 	case 1:
+		c.flags.z = (value & (1 << y)) == 0
+		c.flags.n = false
+		c.flags.h = true
 
+	// RES y
 	case 2:
+		write_reg(c, z, value & ~(1 << y))
 
+	// SET y
 	case 3:
+		write_reg(c, z, value | (1 << y))
 
 	}
 	if z == 6 {
