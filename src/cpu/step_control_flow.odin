@@ -1,5 +1,7 @@
 package cpu
 
+import "core:math/bits"
+
 jumps :: proc(c: ^Cpu, op: u8) -> int {
 	op_code := (op >> 4) & 0b11
 	cycle_count := 0
@@ -48,6 +50,78 @@ cond :: proc(c: ^Cpu, op: u8) -> bool {
 		return c.flags.c
 	}
 	return false
+}
+
+cb :: proc(c: ^Cpu) -> int {
+	op := fetch8(c)
+	x := (op >> 6) & 0b11
+	y := (op >> 3) & 0b111
+	z := op & 0b111
+	value := read_reg(c, z)
+
+	switch x {
+	case 0:
+		result: u8
+		carry: bool
+		old_c := c.flags.c
+		switch y {
+		// RLC
+		case 0:
+			result = bits.rotate_left8(value, 1)
+			carry = value & 0x80 != 0
+		// RRC
+		case 1:
+			result = bits.rotate_left8(value, 7)
+			carry = value & 0x01 != 0
+
+		// RL
+		case 2:
+			result = (value << 1) | u8(old_c)
+			carry = value & 0x80 != 0
+
+		// RR
+		case 3:
+			result = (value >> 1) | (old_c ? 0x80 : 0)
+			carry = value & 0x01 != 0
+
+		// SLA
+		case 4:
+			result = value << 1
+			carry = value & 0x80 != 0
+
+		// SRA
+		case 5:
+			result = (value >> 1) | (value & 0x80)
+			carry = value & 0x01 != 0
+
+		// SWAP
+		case 6:
+			result = value << 4 | value >> 4
+			carry = false
+
+		// SRL
+		case 7:
+			result = value >> 1
+			carry = value & 0x01 != 0
+		}
+
+		write_reg(c, z, result)
+		c.flags.z = result == 0
+		c.flags.n = false
+		c.flags.h = false
+		c.flags.c = carry
+
+	case 1:
+
+	case 2:
+
+	case 3:
+
+	}
+	if z == 6 {
+		return x == 1 ? 12 : 16
+	}
+	return 8
 }
 
 control_flow :: proc(c: ^Cpu, op: u8) -> int {
@@ -108,6 +182,7 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 
 		// CB
 		case 1:
+			cycle_count = cb(c)
 
 		// DI
 		case 6:
