@@ -1,13 +1,9 @@
 package cpu
 
-alu :: proc(c: ^Cpu, op: u8) -> int {
-	op_code := (op & 0b00111000) >> 3
-	src := (op & 0b00000111)
+alu_apply :: proc(c: ^Cpu, op_code: u8, v: u8) {
 	cy := u8(c.flags.c)
 	acc := c.regs[.A]
-	v := read_reg(c, src)
 	result: u8
-
 	switch op_code {
 	// ADD A,r
 	case 0:
@@ -67,6 +63,14 @@ alu :: proc(c: ^Cpu, op: u8) -> int {
 	if op_code != 7 {
 		c.regs[.A] = result
 	}
+}
+
+alu :: proc(c: ^Cpu, op: u8) -> int {
+	op_code := (op & 0b00111000) >> 3
+	src := (op & 0b00000111)
+	v := read_reg(c, src)
+
+	alu_apply(c, op_code, v)
 
 	// When src is 6 (HL register), cycle count is 8
 	return src == 6 ? 8 : 4

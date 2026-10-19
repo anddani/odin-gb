@@ -36,6 +36,7 @@ Cpu :: struct {
 	// hl:    u16,
 	sp:    u16,
 	pc:    u16,
+	ime:   bool,
 }
 
 
@@ -58,7 +59,7 @@ step :: proc(c: ^Cpu) -> int {
 	// Conditional RET/JP/CALL, PUSH/POP, RST,
 	// CB prefix, ALU A,d8, LDH
 	case 3:
-		return 4
+		return control_flow(c, op)
 
 	case:
 		return 0
