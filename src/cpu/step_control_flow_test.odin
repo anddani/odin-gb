@@ -199,3 +199,96 @@ test_jp_nz_taken :: proc(t: ^testing.T) {
 	testing.expect_value(t, c.pc, u16(0x1234))
 	testing.expect_value(t, cycles, 16)
 }
+
+// CALL a16=0xCD, CALL Z=0xCC.
+
+@(test)
+test_call_a16 :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.pc = 0x0100
+	c.sp = 0xFFFE
+	m.data[0x0100] = 0x00 // target 0x4000
+	m.data[0x0101] = 0x40
+	cycles := control_flow(&c, 0xCD)
+	testing.expect_value(t, c.pc, u16(0x4000))
+	testing.expect_value(t, c.sp, u16(0xFFFC))
+	// return address pushed is 0x0102 -- past the 2-byte operand
+	testing.expect_value(t, m.data[0xFFFC], u8(0x02))
+	testing.expect_value(t, m.data[0xFFFD], u8(0x01))
+	testing.expect_value(t, cycles, 24)
+}
+
+@(test)
+test_call_cc_taken :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.flags.z = true
+	c.pc = 0x0100
+	c.sp = 0xFFFE
+	m.data[0x0100] = 0x00
+	m.data[0x0101] = 0x40
+	cycles := control_flow(&c, 0xCC) // CALL Z, taken
+	testing.expect_value(t, c.pc, u16(0x4000))
+	testing.expect_value(t, c.sp, u16(0xFFFC))
+	testing.expect_value(t, cycles, 24)
+}
+
+@(test)
+test_call_cc_not_taken :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.flags.z = false
+	c.pc = 0x0100
+	c.sp = 0xFFFE
+	m.data[0x0100] = 0x00
+	m.data[0x0101] = 0x40
+	cycles := control_flow(&c, 0xCC) // CALL Z, not taken
+	testing.expect_value(t, c.pc, u16(0x0102)) // operand consumed, no jump
+	testing.expect_value(t, c.sp, u16(0xFFFE)) // nothing pushed
+	testing.expect_value(t, cycles, 12)
+}
+
+// CALL then RET must return to the instruction after the CALL.
+@(test)
+test_call_ret_roundtrip :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.pc = 0x0100
+	c.sp = 0xFFFE
+	m.data[0x0100] = 0x00
+	m.data[0x0101] = 0x40
+	control_flow(&c, 0xCD) // CALL 0x4000
+	testing.expect_value(t, c.pc, u16(0x4000))
+	control_flow(&c, 0xC9) // RET
+	testing.expect_value(t, c.pc, u16(0x0102)) // back past the CALL operand
+	testing.expect_value(t, c.sp, u16(0xFFFE)) // sp restored
+}
+
+// RST: 0xC7..0xFF, vector = op & 0x38.
+
+@(test)
+test_rst_pushes_and_jumps :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.pc = 0x0150
+	c.sp = 0xFFFE
+	cycles := control_flow(&c, 0xD7) // RST 0x10
+	testing.expect_value(t, c.pc, u16(0x0010))
+	testing.expect_value(t, c.sp, u16(0xFFFC))
+	testing.expect_value(t, m.data[0xFFFC], u8(0x50)) // return addr low
+	testing.expect_value(t, m.data[0xFFFD], u8(0x01)) // return addr high
+	testing.expect_value(t, cycles, 16)
+}
+
+@(test)
+test_rst_vectors :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0xFFFE
+	control_flow(&c, 0xC7) // RST 0x00
+	testing.expect_value(t, c.pc, u16(0x0000))
+	c.sp = 0xFFFE
+	control_flow(&c, 0xFF) // RST 0x38
+	testing.expect_value(t, c.pc, u16(0x0038))
+}

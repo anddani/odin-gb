@@ -118,15 +118,27 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 
 	// CALL cc,a16
 	case 4:
+		target := fetch16(c)
+		if cond(c, op) {
+			push16(c, c.pc)
+			c.pc = target
+			cycle_count = 24
+		} else {
+			cycle_count = 12
+		}
+
 
 	// PUSH RR
-	// CALL a6
+	// CALL a16
 	case 5:
 		if bit_3 == 0 {
 			push16(c, get_rp2(c, op))
 			cycle_count = 16
 		} else {
-
+			target := fetch16(c)
+			push16(c, c.pc)
+			c.pc = target
+			cycle_count = 24
 		}
 
 	// immediate ALU
@@ -138,6 +150,9 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 
 	// RST
 	case 7:
+		push16(c, c.pc)
+		c.pc = u16(op & 0x38)
+		cycle_count = 16
 	}
 	return cycle_count
 }
