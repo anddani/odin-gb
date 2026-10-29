@@ -292,3 +292,125 @@ test_rst_vectors :: proc(t: ^testing.T) {
 	control_flow(&c, 0xFF) // RST 0x38
 	testing.expect_value(t, c.pc, u16(0x0038))
 }
+
+// RET cc: RET NZ=0xC0, RET Z=0xC8.
+
+@(test)
+test_ret_cc_taken :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.flags.z = true
+	c.sp = 0xFFFC
+	m.data[0xFFFC] = 0x00
+	m.data[0xFFFD] = 0x40
+	cycles := control_flow(&c, 0xC8) // RET Z, taken
+	testing.expect_value(t, c.pc, u16(0x4000))
+	testing.expect_value(t, c.sp, u16(0xFFFE))
+	testing.expect_value(t, cycles, 20)
+}
+
+@(test)
+test_ret_cc_not_taken :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.flags.z = false
+	c.pc = 0x0150
+	c.sp = 0xFFFC
+	m.data[0xFFFC] = 0x00
+	m.data[0xFFFD] = 0x40
+	cycles := control_flow(&c, 0xC8) // RET Z, Z clear -> not taken
+	testing.expect_value(t, c.pc, u16(0x0150)) // no jump
+	testing.expect_value(t, c.sp, u16(0xFFFC)) // nothing popped
+	testing.expect_value(t, cycles, 8)
+}
+
+@(test)
+test_ret_nz_taken :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.flags.z = false // NZ true
+	c.sp = 0xFFFC
+	m.data[0xFFFC] = 0x34
+	m.data[0xFFFD] = 0x12
+	cycles := control_flow(&c, 0xC0) // RET NZ, taken
+	testing.expect_value(t, c.pc, u16(0x1234))
+	testing.expect_value(t, cycles, 20)
+}
+
+// LDH (a8),A=0xE0, LDH A,(a8)=0xF0 -- address 0xFF00 + a8.
+
+@(test)
+test_ldh_a8_store :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.regs[.A] = 0x42
+	c.pc = 0x0100
+	m.data[0x0100] = 0x80 // offset -> 0xFF80
+	cycles := control_flow(&c, 0xE0)
+	testing.expect_value(t, m.data[0xFF80], u8(0x42))
+	testing.expect_value(t, c.pc, u16(0x0101)) // immediate consumed
+	testing.expect_value(t, cycles, 12)
+}
+
+@(test)
+test_ldh_a8_load :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.pc = 0x0100
+	m.data[0x0100] = 0x80 // offset -> 0xFF80
+	m.data[0xFF80] = 0x3C
+	cycles := control_flow(&c, 0xF0)
+	testing.expect_value(t, c.regs[.A], u8(0x3C))
+	testing.expect_value(t, cycles, 12)
+}
+
+// LDH (C),A=0xE2, LDH A,(C)=0xF2, LD (a16),A=0xEA, LD A,(a16)=0xFA.
+
+@(test)
+test_ldh_c_store :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.regs[.A] = 0x42
+	c.regs[.C] = 0x80 // -> 0xFF80
+	cycles := control_flow(&c, 0xE2)
+	testing.expect_value(t, m.data[0xFF80], u8(0x42))
+	testing.expect_value(t, cycles, 8)
+}
+
+@(test)
+test_ldh_c_load :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.regs[.C] = 0x80
+	m.data[0xFF80] = 0x3C
+	cycles := control_flow(&c, 0xF2)
+	testing.expect_value(t, c.regs[.A], u8(0x3C))
+	testing.expect_value(t, cycles, 8)
+}
+
+@(test)
+test_ld_a16_store :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.regs[.A] = 0x99
+	c.pc = 0x0100
+	m.data[0x0100] = 0x00 // addr 0xC000, little-endian
+	m.data[0x0101] = 0xC0
+	cycles := control_flow(&c, 0xEA)
+	testing.expect_value(t, m.data[0xC000], u8(0x99))
+	testing.expect_value(t, c.pc, u16(0x0102)) // 16-bit operand consumed
+	testing.expect_value(t, cycles, 16)
+}
+
+@(test)
+test_ld_a16_load :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.pc = 0x0100
+	m.data[0x0100] = 0x00 // addr 0xC000
+	m.data[0x0101] = 0xC0
+	m.data[0xC000] = 0x55
+	cycles := control_flow(&c, 0xFA)
+	testing.expect_value(t, c.regs[.A], u8(0x55))
+	testing.expect_value(t, cycles, 16)
+}

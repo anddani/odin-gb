@@ -144,6 +144,27 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 	// ADD SP,r8
 	// LD HL,SP+r8
 	case 0:
+		if op & 0x20 == 0 {
+			if cond(c, op) {
+				c.pc = pop16(c)
+				cycle_count = 20
+			} else {
+				cycle_count = 8
+			}
+		} else {
+			op_code := (op & 0b00111000) >> 3
+			switch op_code {
+			// LDH (a8),A
+			case 4:
+				write8(&c.bus, 0xFF00 + u16(fetch8(c)), c.regs[.A])
+				cycle_count = 12
+
+			// LDH A,(a8)
+			case 6:
+				c.regs[.A] = read8(&c.bus, 0xFF00 + u16(fetch8(c)))
+				cycle_count = 12
+			}
+		}
 
 	// POP rr
 	// RET
@@ -173,6 +194,28 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 				cycle_count = 12
 			}
 		} else {
+			op_code := (op & 0b00111000) >> 3
+			switch op_code {
+			// LDH (C),A
+			case 4:
+				write8(&c.bus, 0xFF00 + u16(c.regs[.C]), c.regs[.A])
+				cycle_count = 8
+
+			// LDH A,(C)
+			case 6:
+				c.regs[.A] = read8(&c.bus, 0xFF00 + u16(c.regs[.C]))
+				cycle_count = 8
+
+			// LD (a16),A
+			case 5:
+				write8(&c.bus, fetch16(c), c.regs[.A])
+				cycle_count = 16
+
+			// LD A,(a16)
+			case 7:
+				c.regs[.A] = read8(&c.bus, fetch16(c))
+				cycle_count = 16
+			}
 
 		}
 
