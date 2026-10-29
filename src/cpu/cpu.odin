@@ -26,17 +26,18 @@ Reg :: enum {
 }
 
 Cpu :: struct {
-	bus:   Bus,
-	flags: Flags,
-	regs:  [Reg]u8,
-	halt:  bool,
+	bus:         Bus,
+	flags:       Flags,
+	regs:        [Reg]u8,
+	halt:        bool,
 	// a:     u8,
 	// bc:    u16,
 	// de:    u16,
 	// hl:    u16,
-	sp:    u16,
-	pc:    u16,
-	ime:   bool,
+	sp:          u16,
+	pc:          u16,
+	ime:         bool,
+	ime_pending: bool,
 }
 
 

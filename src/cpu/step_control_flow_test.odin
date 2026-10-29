@@ -414,3 +414,105 @@ test_ld_a16_load :: proc(t: ^testing.T) {
 	testing.expect_value(t, c.regs[.A], u8(0x55))
 	testing.expect_value(t, cycles, 16)
 }
+
+// ADD SP,r8 = 0xE8. Z=0, N=0; H/C from an unsigned 8-bit add of SP's low byte.
+
+@(test)
+test_add_sp_r8_positive :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0x0005
+	c.pc = 0x0100
+	m.data[0x0100] = 0x03
+	cycles := control_flow(&c, 0xE8)
+	testing.expect_value(t, c.sp, u16(0x0008))
+	testing.expect(t, !c.flags.z && !c.flags.n && !c.flags.h && !c.flags.c, "no flags")
+	testing.expect_value(t, cycles, 16)
+}
+
+// Negative offset decreases SP, but H/C come from the unsigned byte add.
+@(test)
+test_add_sp_r8_negative :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0x0005
+	c.pc = 0x0100
+	m.data[0x0100] = 0xFF // -1
+	control_flow(&c, 0xE8)
+	testing.expect_value(t, c.sp, u16(0x0004)) // SP decreases
+	testing.expect(t, c.flags.h && c.flags.c, "H,C from 0x05 + 0xFF low-byte add")
+}
+
+@(test)
+test_add_sp_r8_half_carry_only :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0x000F
+	c.pc = 0x0100
+	m.data[0x0100] = 0x01
+	control_flow(&c, 0xE8)
+	testing.expect_value(t, c.sp, u16(0x0010))
+	testing.expect(t, c.flags.h && !c.flags.c, "H set, no C")
+}
+
+// Result can be 0, but Z is never set.
+@(test)
+test_add_sp_r8_z_always_zero :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0x0001
+	c.pc = 0x0100
+	m.data[0x0100] = 0xFF // -1 -> result 0x0000
+	control_flow(&c, 0xE8)
+	testing.expect_value(t, c.sp, u16(0x0000))
+	testing.expect(t, !c.flags.z, "ADD SP,r8 never sets Z")
+}
+
+// LD HL,SP+r8 = 0xF8. Same math as ADD SP,r8 but result -> HL, SP unchanged.
+
+@(test)
+test_ld_hl_sp_r8 :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0x0005
+	c.pc = 0x0100
+	m.data[0x0100] = 0x03
+	cycles := control_flow(&c, 0xF8)
+	testing.expect_value(t, get_hl(&c), u16(0x0008)) // result in HL
+	testing.expect_value(t, c.sp, u16(0x0005)) // SP unchanged
+	testing.expect_value(t, cycles, 12)
+}
+
+@(test)
+test_ld_hl_sp_r8_negative :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.sp = 0x0005
+	c.pc = 0x0100
+	m.data[0x0100] = 0xFF // -1
+	control_flow(&c, 0xF8)
+	testing.expect_value(t, get_hl(&c), u16(0x0004))
+	testing.expect_value(t, c.sp, u16(0x0005)) // SP still unchanged
+	testing.expect(t, c.flags.h && c.flags.c, "H,C from unsigned low-byte add")
+}
+
+// DI=0xF3 (immediate), EI=0xFB (delayed via ime_pending).
+
+@(test)
+test_di_disables_ime :: proc(t: ^testing.T) {
+	c: Cpu
+	c.ime = true
+	cycles := control_flow(&c, 0xF3) // DI
+	testing.expect(t, !c.ime, "DI clears IME immediately")
+	testing.expect_value(t, cycles, 4)
+}
+
+@(test)
+test_ei_schedules_but_not_immediate :: proc(t: ^testing.T) {
+	c: Cpu
+	c.ime = false
+	cycles := control_flow(&c, 0xFB) // EI
+	testing.expect(t, !c.ime, "EI does NOT enable IME immediately")
+	testing.expect(t, c.ime_pending, "EI schedules the IME enable")
+	testing.expect_value(t, cycles, 4)
+}

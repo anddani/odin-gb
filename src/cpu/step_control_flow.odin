@@ -163,6 +163,32 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 			case 6:
 				c.regs[.A] = read8(&c.bus, 0xFF00 + u16(fetch8(c)))
 				cycle_count = 12
+
+			// ADD SP,r8
+			case 5:
+				b := fetch8(c)
+				sp := c.sp
+				c.sp = u16(i32(sp) + i32(i8(b)))
+
+				c.flags.z = false
+				c.flags.n = false
+				c.flags.h = (sp & 0x0F) + (u16(b) & 0x0F) > 0x0F
+				c.flags.c = (sp & 0xFF) + u16(b) > 0xFF
+
+				cycle_count = 16
+
+			// LD HL,SP+r8
+			case 7:
+				b := fetch8(c)
+				sp := c.sp
+				set_hl(c, u16(i32(sp) + i32(i8(b))))
+
+				c.flags.z = false
+				c.flags.n = false
+				c.flags.h = (sp & 0x0F) + (u16(b) & 0x0F) > 0x0F
+				c.flags.c = (sp & 0xFF) + u16(b) > 0xFF
+
+				cycle_count = 12
 			}
 		}
 
@@ -237,9 +263,13 @@ control_flow :: proc(c: ^Cpu, op: u8) -> int {
 
 		// DI
 		case 6:
+			c.ime = false
+			cycle_count = 4
 
 		// EI
 		case 7:
+			c.ime_pending = true
+			cycle_count = 4
 		}
 
 	// CALL cc,a16
