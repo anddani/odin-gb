@@ -30,7 +30,43 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 
 	switch z {
 	// NOP
+	// LD (a16),SP 0x08
+	// STOP 0x10
+	// JR r8 0x18
+	// JR cc,r8 0x20/28/30/38
 	case 0:
+		op_code := (op & 0b00111000) >> 3
+		switch op_code {
+		// NOP
+		case 0:
+			cycle_count = 4
+
+		// LD (a16),SP 0x08
+		case 1:
+			write16(&c.bus, fetch16(c), c.sp)
+			cycle_count = 20
+
+		// STOP 0x10
+		case 2:
+			fetch8(c)
+			cycle_count = 4
+
+		case 3:
+			off := i8(fetch8(c))
+			c.pc = u16(i32(c.pc) + i32(off))
+			cycle_count = 12
+
+		case 4, 5, 6, 7:
+			off := i8(fetch8(c))
+			if cond(c, op) {
+				c.pc = u16(i32(c.pc) + i32(off))
+				cycle_count = 12
+			} else {
+				cycle_count = 8
+			}
+
+		}
+
 
 	// LD rr,d16
 	// ADD HL,rr
