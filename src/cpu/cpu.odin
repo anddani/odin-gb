@@ -30,18 +30,28 @@ Cpu :: struct {
 	flags:       Flags,
 	regs:        [Reg]u8,
 	halt:        bool,
-	// a:     u8,
-	// bc:    u16,
-	// de:    u16,
-	// hl:    u16,
 	sp:          u16,
 	pc:          u16,
 	ime:         bool,
 	ime_pending: bool,
 }
 
+service_interrupt :: proc(c: ^Cpu, iff: u8, pending: u8) -> int {
+	c.halt = false
+	for bit in 0 ..< 5 {
+		shifted_bit: u8 = 1 << u8(bit)
+		if pending & shifted_bit != 0 {
+			c.ime = false
+			write8(&c.bus, 0xFF0F, iff & ~shifted_bit)
+			push16(c, c.pc)
+			c.pc = 0x40 + u16(bit) * 8
+			return 20
+		}
+	}
+	return 0
+}
 
-step :: proc(c: ^Cpu) -> int {
+quadrant_dispatch :: proc(c: ^Cpu) -> int {
 	op := fetch8(c)
 	switch (op >> 6) {
 	// Relative jumps, 16-bit LD/INC/DEC,
@@ -65,4 +75,32 @@ step :: proc(c: ^Cpu) -> int {
 	case:
 		return 0
 	}
+}
+
+step :: proc(c: ^Cpu) -> int {
+	ie := read8(&c.bus, 0xFFFF)
+	iff := read8(&c.bus, 0xFF0F)
+	pending := ie & iff & 0x1F
+	if c.ime && pending != 0 {
+		return service_interrupt(c, iff, pending)
+	}
+
+	if c.halt {
+		if pending != 0 {
+			c.halt = false
+		} else {
+			return 4
+		}
+	}
+
+	will_enable := c.ime_pending
+
+	cycles := quadrant_dispatch(c)
+
+	if will_enable {
+		c.ime = true
+		c.ime_pending = false
+	}
+
+	return cycles
 }
