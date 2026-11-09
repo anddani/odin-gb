@@ -46,7 +46,7 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 		ppu.ly = (ppu.ly + 1) % 154
 		lyc_equal := ppu.ly == ppu.lyc
 		set_stat_flag(ppu, 0x04, lyc_equal)
-		if lyc_equal && ppu.stat & 0x40 == 0 {
+		if lyc_equal && ppu.stat & 0x40 != 0 {
 			stat = true
 		}
 
