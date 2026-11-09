@@ -1,7 +1,6 @@
 package testrom
 
 import "core:fmt"
-import "core:strings"
 import "core:testing"
 
 SUB_ROMS :: [?]string {
@@ -32,8 +31,6 @@ test_blargg_cpu_instrs :: proc(t: ^testing.T) {
 		if result.status == .Passed {pass += 1}
 		fmt.printf("  %s %s\n", mark, path)
 
-		// 02-interrupts needs the interrupt dispatch (not implemented yet).
-		if strings.contains(path, "02-interrupts") {continue}
 		testing.expectf(t, result.status == .Passed, "%s: got %v", path, result.status)
 	}
 	fmt.printf("=== %d/%d sub-ROMs passed ===\n", pass, len(SUB_ROMS))

@@ -5,13 +5,15 @@ import "core:fmt"
 import "../cart"
 import "../cpu"
 import "../mmu"
+import "../timer"
 
 // A Blargg test run drives a real cpu.Cpu through the real MMU (banked memory,
 // ROM delegated to the cart), capturing serial output to decide Passed/Failed.
 
-// Everything the Bus context needs: the MMU plus the serial scoreboard.
+// Everything the Bus context needs: the MMU (+ timer) plus the serial scoreboard.
 Machine :: struct {
 	mmu:    mmu.Mmu,
+	timer:  timer.Timer,
 	serial: Serial_Capture,
 }
 
@@ -46,6 +48,7 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 	m := new(Machine)
 	defer free(m)
 	m.mmu.cart = &c // MMU delegates ROM/external-RAM reads to the cart
+	m.mmu.timer = &m.timer // MMU routes FF04-FF07 to this timer
 
 	state: cpu.Cpu
 	state.bus = cpu.Bus {
@@ -68,6 +71,7 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 			break
 		}
 		result.cycles += used
+		mmu.mmu_tick(&m.mmu, used) // advance the timer, raising IF bit 2 on overflow
 
 		// Only rescan the serial text when new bytes have arrived.
 		if m.serial.n != last_n {
