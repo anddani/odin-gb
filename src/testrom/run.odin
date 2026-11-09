@@ -5,6 +5,7 @@ import "core:fmt"
 import "../cart"
 import "../cpu"
 import "../mmu"
+import "../ppu"
 import "../timer"
 
 // A Blargg test run drives a real cpu.Cpu through the real MMU (banked memory,
@@ -14,6 +15,7 @@ import "../timer"
 Machine :: struct {
 	mmu:    mmu.Mmu,
 	timer:  timer.Timer,
+	ppu:    ppu.Ppu,
 	serial: Serial_Capture,
 }
 
@@ -49,6 +51,7 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 	defer free(m)
 	m.mmu.cart = &c // MMU delegates ROM/external-RAM reads to the cart
 	m.mmu.timer = &m.timer // MMU routes FF04-FF07 to this timer
+	m.mmu.ppu = &m.ppu // MMU routes FF40-FF4B to this ppu
 
 	state: cpu.Cpu
 	state.bus = cpu.Bus {
