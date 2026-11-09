@@ -11,3 +11,28 @@ Ppu :: struct {
 	wy:   u8, // FF4A
 	wx:   u8, // FF4B
 }
+
+ppu_read :: proc(ppu: ^Ppu, addr: u16) -> u8 {
+	result: u8 = 0xFF
+	switch addr {
+	case 0xFF40:
+		result = ppu.lcdc
+	case 0xFF41:
+		result = ppu.stat
+	case 0xFF42:
+		result = ppu.scy
+	case 0xFF43:
+		result = ppu.scx
+	case 0xFF44:
+		result = ppu.ly
+	case 0xFF45:
+		result = ppu.lyc
+	case 0xFF47:
+		result = ppu.bgp
+	case 0xFF4A:
+		result = ppu.wy
+	case 0xFF4B:
+		result = ppu.wx
+	}
+	return result
+}
