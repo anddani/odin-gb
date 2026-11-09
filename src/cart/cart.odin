@@ -33,6 +33,22 @@ cart_from_file :: proc(path: string) -> (Cart, Cart_Error) {
 	return cart_from_bytes(data)
 }
 
+cart_read :: proc(cart: ^Cart, addr: u16) -> byte {
+	if (addr < MIN_ROM_SIZE) {
+		return cart.rom[addr]
+	} else {
+		return 0 // TODO: external RAM
+	}
+}
+
+cart_write :: proc(cart: ^Cart, addr: u16, value: byte) {
+	if (addr < MIN_ROM_SIZE) {
+		// Ignore writes to ROM
+		return
+	}
+	// TODO: external RAM
+}
+
 cart_destroy :: proc(c: ^Cart) {
 	delete(c.rom)
 }
