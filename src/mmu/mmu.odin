@@ -23,6 +23,10 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 		// VRAM
 		value = mmu.vram[0][addr - 0x8000]
 
+	case 0xC000 ..= 0xCFFF:
+		// WRAM bank 0
+		value = mmu.wram[0][addr - 0xC000]
+
 	case:
 	}
 	return value
@@ -37,6 +41,10 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 	case 0x8000 ..= 0x9FFF:
 		// VRAM
 		mmu.vram[0][addr - 0x8000] = value
+	case 0xC000 ..= 0xCFFF:
+		// WRAM bank 0
+		mmu.wram[0][addr - 0xC000] = value
+
 	case:
 
 	}
