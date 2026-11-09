@@ -4,26 +4,24 @@ import "core:fmt"
 
 import "../cart"
 import "../cpu"
+import "../mmu"
 
-// A Blargg test run drives a real cpu.Cpu over a flat 64 KB memory, capturing
-// serial output to decide Passed/Failed. It is wired and ready now; it will
-// actually progress once cpu.step executes real instructions. Against the
-// current step stub (which returns 0) the no-progress guard bails immediately
-// instead of spinning forever.
+// A Blargg test run drives a real cpu.Cpu through the real MMU (banked memory,
+// ROM delegated to the cart), capturing serial output to decide Passed/Failed.
 
-// Everything the Bus context needs: flat memory plus the serial scoreboard.
+// Everything the Bus context needs: the MMU plus the serial scoreboard.
 Machine :: struct {
-	mem:    [0x10000]u8,
+	mmu:    mmu.Mmu,
 	serial: Serial_Capture,
 }
 
 machine_read :: proc(ctx: rawptr, addr: u16) -> u8 {
-	return (cast(^Machine)ctx).mem[addr]
+	return mmu.mmu_read(&(cast(^Machine)ctx).mmu, addr)
 }
 
 machine_write :: proc(ctx: rawptr, addr: u16, value: u8) {
 	m := cast(^Machine)ctx
-	m.mem[addr] = value
+	mmu.mmu_write(&m.mmu, addr, value)
 	serial_write(&m.serial, addr, value) // ignores non-serial addresses
 }
 
@@ -47,7 +45,7 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 
 	m := new(Machine)
 	defer free(m)
-	copy(m.mem[:], c.rom) // 32 KB no-MBC sub-ROMs map to 0x0000-0x7FFF
+	m.mmu.cart = &c // MMU delegates ROM/external-RAM reads to the cart
 
 	state: cpu.Cpu
 	state.bus = cpu.Bus {
