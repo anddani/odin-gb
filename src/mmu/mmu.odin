@@ -1,15 +1,17 @@
 package mmu
 
 import "../cart"
+import "../timer"
 
 Mmu :: struct {
-	cart: ^cart.Cart,
-	vram: [1][0x2000]u8,
-	wram: [2][0x1000]u8,
-	oam:  [0xA0]u8,
-	io:   [0x80]u8,
-	hram: [0x7F]u8,
-	ie:   u8,
+	cart:  ^cart.Cart,
+	timer: ^timer.Timer,
+	vram:  [1][0x2000]u8,
+	wram:  [2][0x1000]u8,
+	oam:   [0xA0]u8,
+	io:    [0x80]u8,
+	hram:  [0x7F]u8,
+	ie:    u8,
 }
 
 mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
@@ -45,7 +47,11 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 
 	case 0xFF00 ..= 0xFF7F:
 		// I/O
-		value = mmu.io[addr - 0xFF00]
+		if addr >= 0xFF04 && addr <= 0xFF07 {
+			value = timer.timer_read(mmu.timer, addr)
+		} else {
+			value = mmu.io[addr - 0xFF00]
+		}
 
 	case 0xFF80 ..= 0xFFFE:
 		// HRAM
@@ -91,7 +97,11 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 
 	case 0xFF00 ..= 0xFF7F:
 		// I/O
-		mmu.io[addr - 0xFF00] = value
+		if addr >= 0xFF04 && addr <= 0xFF07 {
+			timer.timer_write(mmu.timer, addr, value)
+		} else {
+			mmu.io[addr - 0xFF00] = value
+		}
 
 	case 0xFF80 ..= 0xFFFE:
 		// HRAM
