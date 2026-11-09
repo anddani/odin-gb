@@ -1,11 +1,13 @@
 package mmu
 
 import "../cart"
+import "../ppu"
 import "../timer"
 
 Mmu :: struct {
 	cart:  ^cart.Cart,
 	timer: ^timer.Timer,
+	ppu:   ^ppu.Ppu,
 	vram:  [1][0x2000]u8,
 	wram:  [2][0x1000]u8,
 	oam:   [0xA0]u8,
@@ -54,9 +56,12 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 
 	case 0xFF00 ..= 0xFF7F:
 		// I/O
-		if addr >= 0xFF04 && addr <= 0xFF07 {
+		switch addr {
+		case 0xFF04 ..= 0xFF07:
 			value = timer.timer_read(mmu.timer, addr)
-		} else {
+		case 0xFF40 ..= 0xFF4B:
+			value = ppu.ppu_read(mmu.ppu, addr)
+		case:
 			value = mmu.io[addr - 0xFF00]
 		}
 
@@ -104,9 +109,12 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 
 	case 0xFF00 ..= 0xFF7F:
 		// I/O
-		if addr >= 0xFF04 && addr <= 0xFF07 {
+		switch addr {
+		case 0xFF04 ..= 0xFF07:
 			timer.timer_write(mmu.timer, addr, value)
-		} else {
+		case 0xFF40 ..= 0xFF4B:
+			ppu.ppu_write(mmu.ppu, addr, value)
+		case:
 			mmu.io[addr - 0xFF00] = value
 		}
 
