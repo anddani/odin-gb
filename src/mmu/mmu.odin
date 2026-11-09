@@ -39,6 +39,11 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 		// OAM
 		value = mmu.oam[addr - 0xFE00]
 
+	case 0xFEA0 ..= 0xFEFF:
+		// No-op, default value 0xFF
+		value = 0xFF
+
+
 	case:
 	}
 	return value
@@ -69,6 +74,9 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 	case 0xFE00 ..= 0xFE9F:
 		// OAM
 		mmu.oam[addr - 0xFE00] = value
+
+	// No-op
+	case 0xFEA0 ..= 0xFEFF:
 
 	case:
 
