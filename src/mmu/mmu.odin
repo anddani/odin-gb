@@ -43,6 +43,9 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 		// No-op, default value 0xFF
 		value = 0xFF
 
+	case 0xFF00 ..= 0xFF7F:
+		// I/O
+		value = mmu.io[addr - 0xFF00]
 
 	case:
 	}
@@ -77,6 +80,10 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 
 	// No-op
 	case 0xFEA0 ..= 0xFEFF:
+
+	case 0xFF00 ..= 0xFF7F:
+		// I/O
+		mmu.io[addr - 0xFF00] = value
 
 	case:
 
