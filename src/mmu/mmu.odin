@@ -14,6 +14,13 @@ Mmu :: struct {
 	ie:    u8,
 }
 
+mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
+	if timer.timer_step(mmu.timer, cycles) {
+		// Bit 2 requests timer interrupt
+		mmu.io[0x0F] |= 0x04
+	}
+}
+
 mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 	value: byte = 0
 	switch addr {
