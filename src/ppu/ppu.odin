@@ -18,6 +18,10 @@ sync_mode_to_stat :: proc(ppu: ^Ppu) {
 	ppu.stat = (ppu.stat & 0xFC) | ppu.mode
 }
 
+set_stat_flag :: proc(ppu: ^Ppu, mask: u8, on: bool) {
+	ppu.stat = on ? (ppu.stat | mask) : (ppu.stat &~ mask)
+}
+
 ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 	vblank, stat := false, false
 
@@ -28,6 +32,24 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 		ppu.mode = 0
 		sync_mode_to_stat(ppu)
 		return false, false
+	}
+
+	ppu.dots += cycles
+
+	// End of scanline
+	if ppu.dots >= 456 {
+		ppu.dots -= 456
+		ppu.ly = (ppu.ly + 1) % 154
+		lyc_equal := ppu.ly == ppu.lyc
+		set_stat_flag(ppu, 0x04, lyc_equal)
+		if lyc_equal && ppu.stat & 0x40 == 0 {
+			stat = true
+		}
+
+		// Entering VBlank
+		if ppu.ly == 144 {
+			vblank = true
+		}
 	}
 
 	return vblank, stat
