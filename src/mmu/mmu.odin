@@ -51,6 +51,10 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 		// HRAM
 		value = mmu.hram[addr - 0xFF80]
 
+	case 0xFFFF:
+		// IE
+		value = mmu.ie
+
 	case:
 	}
 	return value
@@ -92,6 +96,10 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 	case 0xFF80 ..= 0xFFFE:
 		// HRAM
 		mmu.hram[addr - 0xFF80] = value
+
+	case 0xFFFF:
+		// IE
+		mmu.ie = value
 
 	case:
 
