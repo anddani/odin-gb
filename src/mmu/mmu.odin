@@ -35,6 +35,10 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 		// Echo RAM
 		value = mmu_read(mmu, addr - 0x2000)
 
+	case 0xFE00 ..= 0xFE9F:
+		// OAM
+		value = mmu.oam[addr - 0xFE00]
+
 	case:
 	}
 	return value
@@ -61,6 +65,10 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 	case 0xE000 ..= 0xFDFF:
 		// Echo RAM
 		mmu_write(mmu, addr - 0x2000, value)
+
+	case 0xFE00 ..= 0xFE9F:
+		// OAM
+		mmu.oam[addr - 0xFE00] = value
 
 	case:
 
