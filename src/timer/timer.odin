@@ -35,3 +35,18 @@ timer_step :: proc(timer: ^Timer, cycles: int) -> bool {
 	}
 	return overflow
 }
+
+timer_read :: proc(timer: ^Timer, addr: u16) -> u8 {
+	result: u8 = 0xFF
+	switch addr {
+	case 0xFF04:
+		result = timer.div
+	case 0xFF05:
+		result = timer.tima
+	case 0xFF06:
+		result = timer.tma
+	case 0xFF07:
+		result = timer.tac
+	}
+	return result
+}
