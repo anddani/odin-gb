@@ -36,3 +36,24 @@ ppu_read :: proc(ppu: ^Ppu, addr: u16) -> u8 {
 	}
 	return result
 }
+
+ppu_write :: proc(ppu: ^Ppu, addr: u16, value: u8) {
+	switch addr {
+	case 0xFF40:
+		ppu.lcdc = value
+	case 0xFF41:
+		ppu.stat = (value & 0xF8) | (ppu.stat & 0x07)
+	case 0xFF42:
+		ppu.scy = value
+	case 0xFF43:
+		ppu.scx = value
+	case 0xFF45:
+		ppu.lyc = value
+	case 0xFF47:
+		ppu.bgp = value
+	case 0xFF4A:
+		ppu.wy = value
+	case 0xFF4B:
+		ppu.wx = value
+	}
+}
