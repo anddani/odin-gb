@@ -1,12 +1,12 @@
 package timer
 
 Timer :: struct {
-	div_counter:  int,
 	div:          u8,
-	tima_counter: int,
 	tima:         u8,
 	tma:          u8,
 	tac:          u8,
+	div_counter:  int,
+	tima_counter: int,
 }
 
 tima_periods := [4]int{1024, 16, 64, 256}
@@ -49,4 +49,18 @@ timer_read :: proc(timer: ^Timer, addr: u16) -> u8 {
 		result = timer.tac
 	}
 	return result
+}
+
+timer_write :: proc(timer: ^Timer, addr: u16, value: u8) {
+	switch addr {
+	case 0xFF04:
+		timer.div = 0
+		timer.div_counter = 0
+	case 0xFF05:
+		timer.tima = value
+	case 0xFF06:
+		timer.tma = value
+	case 0xFF07:
+		timer.tac = value
+	}
 }
