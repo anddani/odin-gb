@@ -10,6 +10,27 @@ Ppu :: struct {
 	bgp:  u8, // FF47
 	wy:   u8, // FF4A
 	wx:   u8, // FF4B
+	dots: int,
+	mode: u8,
+}
+
+sync_mode_to_stat :: proc(ppu: ^Ppu) {
+	ppu.stat = (ppu.stat & 0xFC) | ppu.mode
+}
+
+ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
+	vblank, stat := false, false
+
+	// LCD disabled
+	if ppu.lcdc & 0x80 == 0 {
+		ppu.dots = 0
+		ppu.ly = 0
+		ppu.mode = 0
+		sync_mode_to_stat(ppu)
+		return false, false
+	}
+
+	return vblank, stat
 }
 
 ppu_read :: proc(ppu: ^Ppu, addr: u16) -> u8 {
