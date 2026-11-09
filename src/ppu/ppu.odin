@@ -22,6 +22,10 @@ set_stat_flag :: proc(ppu: ^Ppu, mask: u8, on: bool) {
 	ppu.stat = on ? (ppu.stat | mask) : (ppu.stat &~ mask)
 }
 
+render_scanline :: proc(ppu: ^Ppu, ly: u8) {
+
+}
+
 ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 	vblank, stat := false, false
 
@@ -49,6 +53,34 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 		// Entering VBlank
 		if ppu.ly == 144 {
 			vblank = true
+		}
+	}
+
+	new_mode: u8
+	if ppu.ly >= 144 {
+		// VBlank
+		new_mode = 1
+	} else if ppu.dots < 80 {
+		// OAM scan
+		new_mode = 2
+	} else if ppu.dots < 252 {
+		// Drawing
+		new_mode = 3
+	} else {
+		// HBlank
+		new_mode = 0
+	}
+
+	if new_mode != ppu.mode {
+		ppu.mode = new_mode
+		sync_mode_to_stat(ppu)
+		if new_mode == 0 {
+			render_scanline(ppu, ppu.ly)
+		}
+		if new_mode == 0 && ppu.stat & 0x08 != 0 ||
+		   new_mode == 2 && ppu.stat & 0x20 != 0 ||
+		   new_mode == 1 && ppu.stat & 0x10 != 0 {
+			stat = true
 		}
 	}
 
