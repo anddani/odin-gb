@@ -5,11 +5,18 @@ import "core:os"
 import rl "vendor:raylib"
 
 import "cart"
+import "gameboy"
 
 WIDTH :: 160
 HEIGHT :: 144
 SCALE :: 4
 FPS :: 60
+SHADES := [4]rl.Color {
+	{0xFF, 0xFF, 0xFF, 0xFF},
+	{0xAA, 0xAA, 0xAA, 0xFF},
+	{0x55, 0x55, 0x55, 0xFF},
+	{0x00, 0x00, 0x00, 0xFF},
+}
 
 Framebuffer :: [HEIGHT][WIDTH]rl.Color
 
@@ -32,38 +39,35 @@ main :: proc() {
 
 	rom_path := os.args[1]
 
-	c, err := cart.cart_from_file(rom_path)
 
-	if err != cart.Cart_Error.None {
-		fmt.printf("Error reading cart from path %s: %s\n", rom_path, err)
+	gb := new(gameboy.Gameboy)
+	if err := gameboy.gb_init(gb, os.args[1]); err != .None {
+		fmt.eprintln("Reading cartridge failed:", err)
 		os.exit(1)
 	}
 
-	fmt.println("Cart rom len:", len(c.rom))
-	defer cart.cart_destroy(&c)
+	fmt.println("Cart rom len:", len(gb.cart.rom))
 
-
-	rl.InitWindow(WIDTH * SCALE, HEIGHT * SCALE, "GameBoy Emulator")
+	rl.InitWindow(WIDTH * SCALE, HEIGHT * SCALE, "odin-gb")
 	rl.SetTargetFPS(FPS)
 
 	fb: Framebuffer
-
-	for y in 0 ..< HEIGHT {
-		for x in 0 ..< WIDTH {
-			fb[y][x] = {u8(x), u8(y), 0, 0xff}
-		}
-	}
-
 	img := make_image(&fb)
 	texture := rl.LoadTextureFromImage(img)
-	rl.UpdateTexture(texture, &fb)
 
 	for !rl.WindowShouldClose() {
+		gameboy.gb_run_frame(gb)
+
+		for y in 0 ..< HEIGHT {
+			for x in 0 ..< WIDTH {
+				fb[y][x] = SHADES[gb.ppu.framebuffer[y][x]]
+			}
+		}
+		rl.UpdateTexture(texture, &fb)
+
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLACK)
-
 		rl.DrawTextureEx(texture, {0, 0}, 0, SCALE, rl.WHITE)
-
 		rl.EndDrawing()
 	}
 
