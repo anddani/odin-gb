@@ -39,6 +39,24 @@ set_stat_flag :: proc(ppu: ^Ppu, mask: u8, on: bool) {
 	ppu.stat = on ? (ppu.stat | mask) : (ppu.stat &~ mask)
 }
 
+bg_pixel :: proc(ppu: ^Ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile: int) -> u8 {
+	tile_idx := ppu.vram[map_base + tile_row * 32 + tile_col - 0x8000]
+
+	tile_addr: u16
+	if ppu.lcdc & 0b10000 != 0 {
+		tile_addr = 0x8000 + u16(tile_idx) * 16
+	} else {
+		tile_addr = u16(0x9000 + int(i8(tile_idx)) * 16)
+	}
+
+	pixel_row_idx := tile_addr + u16(row_in_tile) * 2 - 0x8000
+	lo := ppu.vram[pixel_row_idx]
+	hi := ppu.vram[pixel_row_idx + 1]
+
+	bit := u8(7 - col_in_tile)
+	return ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
+}
+
 render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 	if ppu.lcdc & 0b1 == 0 {
 		// BG enable, set shade 0 for whole row
@@ -47,36 +65,36 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 		return
 	}
 
-	bgY := (ly + ppu.scy) & 0xFF // BG pixel row
-	tileRow := bgY / 8 // tile row (0-31)
-	rowInTile := bgY % 8 // pixel row within tile (0-7)
+	bg_y := (ly + ppu.scy) & 0xFF // BG pixel row
+	tile_row := bg_y / 8 // tile row (0-31)
+	row_in_tile := bg_y % 8 // pixel row within tile (0-7)
 
 	// Which 32x32 tile map
 	map_base := ppu.lcdc & 0b1000 != 0 ? 0x9C00 : 0x9800
 
 	for x in 0 ..< WIDTH {
-		bgX := (u8(x) + ppu.scx) & 0xFF
-		tileCol := bgX / 8
-		colInTile := bgX % 8
+		window_active := ppu.lcdc & 0x20 != 0 && int(ly) >= int(ppu.wy) && x >= (int(ppu.wx) - 7)
 
-		tile_idx := ppu.vram[map_base + int(tileRow) * 32 + int(tileCol) - 0x8000]
-
-		tile_addr: u16
-		if ppu.lcdc & 0b10000 != 0 {
-			tile_addr = 0x8000 + u16(tile_idx) * 16
+		idx: u8
+		if window_active {
+			win_x := x - (int(ppu.wx) - 7)
+			win_y := int(ly) - int(ppu.wy)
+			map_base := ppu.lcdc & 0x40 != 0 ? 0x9C00 : 0x9800
+			tile_col := win_x / 8
+			tile_row := win_y / 8
+			row_in_tile := win_y % 8
+			col_in_tile := win_x % 8
+			idx = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
 		} else {
-			tile_addr = u16(0x9000 + int(i8(tile_idx)) * 16)
+			bg_x := (u8(x) + ppu.scx) & 0xFF
+			tile_col := int(bg_x / 8)
+			tile_row := int(bg_y / 8)
+			col_in_tile := int(bg_x % 8)
+			row_in_tile := int(bg_y % 8)
+			idx = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
 		}
-
-		pixel_row_idx := tile_addr + u16(rowInTile) * 2 - 0x8000
-		lo := ppu.vram[pixel_row_idx]
-		hi := ppu.vram[pixel_row_idx + 1]
-
-		bit := 7 - colInTile
-		color_idx := ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
-		ppu.bg_idx[x] = color_idx
-
-		shade := (ppu.bgp >> (color_idx * 2)) & 0x3
+		shade := (ppu.bgp >> (idx * 2)) & 0x3
+		ppu.bg_idx[x] = idx
 		ppu.framebuffer[ly][x] = shade
 	}
 }
