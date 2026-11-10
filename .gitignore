@@ -10,3 +10,5 @@
 .direnv/
 
 .envrc
+roms/
+.DS_Store
