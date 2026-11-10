@@ -1,5 +1,9 @@
 package ppu
 
+WIDTH :: 160
+HEIGHT :: 144
+VRam :: [0x2000]u8
+
 Ppu :: struct {
 	lcdc:        u8, // FF40
 	stat:        u8, // FF41
@@ -10,10 +14,12 @@ Ppu :: struct {
 	bgp:         u8, // FF47
 	wy:          u8, // FF4A
 	wx:          u8, // FF4B
-	framebuffer: [144][160]u8,
+	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
+	framebuffer: [HEIGHT][WIDTH]u8,
 	dots:        int,
 	mode:        u8,
 }
+
 
 sync_mode_to_stat :: proc(ppu: ^Ppu) {
 	ppu.stat = (ppu.stat & 0xFC) | ppu.mode
@@ -24,8 +30,43 @@ set_stat_flag :: proc(ppu: ^Ppu, mask: u8, on: bool) {
 }
 
 render_scanline :: proc(ppu: ^Ppu, ly: u8) {
+	if ppu.lcdc & 0b1 == 0 {
+		// BG enable, set shade 0 for whole row
+		ppu.framebuffer[ly] = 0
+		return
+	}
 
+	bgY := (ly + ppu.scy) & 0xFF // BG pixel row
+	tileRow := bgY / 8 // tile row (0-31)
+	rowInTile := bgY % 8 // pixel row within tile (0-7)
 
+	// Which 32x32 tile map
+	map_base := ppu.lcdc & 0b1000 != 0 ? 0x9C00 : 0x9800
+
+	for x in 0 ..< WIDTH {
+		bgX := (u8(x) + ppu.scx) & 0xFF
+		tileCol := bgX / 8
+		colInTile := bgX % 8
+
+		tile_index := ppu.vram[map_base + int(tileRow) * 32 + int(tileCol) - 0x8000]
+
+		tile_addr: u16
+		if ppu.lcdc & 0b10000 != 0 {
+			tile_addr = 0x8000 + u16(tile_index) * 16
+		} else {
+			tile_addr = u16(0x9000 + int(i8(tile_index)) * 16)
+		}
+
+		pixel_row_idx := tile_addr + u16(rowInTile) * 2 - 0x8000
+		lo := ppu.vram[pixel_row_idx]
+		hi := ppu.vram[pixel_row_idx + 1]
+
+		bit := 7 - colInTile
+		color_idx := ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
+
+		shade := (ppu.bgp >> (color_idx * 2)) & 0x3
+		ppu.framebuffer[ly][x] = shade
+	}
 }
 
 ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
