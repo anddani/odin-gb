@@ -128,8 +128,13 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 			joypad.joypad_write(mmu.joypad, value)
 		case 0xFF04 ..= 0xFF07:
 			timer.timer_write(mmu.timer, addr, value)
-		case 0xFF40 ..= 0xFF4B:
+		case 0xFF40 ..= 0xFF45, 0xFF47 ..= 0xFF4B:
 			ppu.ppu_write(mmu.ppu, addr, value)
+		case 0xFF46:
+			base := u16(value) << 8
+			for i in 0 ..< 0xA0 {
+				mmu.oam[i] = mmu_read(mmu, base + u16(i))
+			}
 		case:
 			mmu.io[addr - 0xFF00] = value
 		}
