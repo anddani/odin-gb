@@ -23,6 +23,16 @@ mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
 	}
 }
 
+ppu_tick :: proc(mmu: ^Mmu, cycles: int) {
+	vblank, stat := ppu.ppu_step(mmu.ppu, cycles)
+	if vblank {
+		mmu.io[0x0F] |= 0x01
+	}
+	if stat {
+		mmu.io[0x0F] |= 0x02
+	}
+}
+
 mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 	value: byte = 0
 	switch addr {
