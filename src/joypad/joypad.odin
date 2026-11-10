@@ -16,3 +16,7 @@ joypad_read :: proc(jp: ^Joypad) -> u8 {
 	}
 	return 0xC0 | (jp.select & 0x30) | lower
 }
+
+joypad_write :: proc(jp: ^Joypad, value: u8) {
+	jp.select = value & 0x30
+}

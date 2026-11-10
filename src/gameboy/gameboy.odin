@@ -2,16 +2,18 @@ package gameboy
 
 import "../cart"
 import "../cpu"
+import "../joypad"
 import "../mmu"
 import "../ppu"
 import "../timer"
 
 Gameboy :: struct {
-	cpu:   cpu.Cpu,
-	mmu:   mmu.Mmu,
-	timer: timer.Timer,
-	ppu:   ppu.Ppu,
-	cart:  cart.Cart,
+	cpu:    cpu.Cpu,
+	mmu:    mmu.Mmu,
+	timer:  timer.Timer,
+	ppu:    ppu.Ppu,
+	cart:   cart.Cart,
+	joypad: joypad.Joypad,
 }
 
 FRAME_IN_TICKS :: 70224
@@ -34,6 +36,7 @@ gb_init :: proc(gb: ^Gameboy, rom_path: string) -> cart.Cart_Error {
 		gb.mmu.cart = &gb.cart
 		gb.mmu.timer = &gb.timer
 		gb.mmu.ppu = &gb.ppu
+		gb.mmu.joypad = &gb.joypad
 		gb.ppu.vram = &gb.mmu.vram[0]
 		gb.cpu.bus = cpu.Bus {
 			ctx   = gb,
