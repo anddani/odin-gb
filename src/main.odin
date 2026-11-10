@@ -56,6 +56,21 @@ main :: proc() {
 	texture := rl.LoadTextureFromImage(img)
 
 	for !rl.WindowShouldClose() {
+		dirs: u8 = 0
+		if rl.IsKeyDown(.DOWN) {dirs |= 0b1000}
+		if rl.IsKeyDown(.UP) {dirs |= 0b0100}
+		if rl.IsKeyDown(.LEFT) {dirs |= 0b0010}
+		if rl.IsKeyDown(.RIGHT) {dirs |= 0b0001}
+		gb.joypad.dirs = dirs
+
+		btns: u8 = 0
+		if rl.IsKeyDown(.ENTER) {btns |= 0b1000}
+		if rl.IsKeyDown(.RIGHT_SHIFT) {btns |= 0b0100}
+		if rl.IsKeyDown(.Z) {btns |= 0b0010}
+		if rl.IsKeyDown(.X) {btns |= 0b0001}
+		gb.joypad.btns = btns
+
+
 		gameboy.gb_run_frame(gb)
 
 		for y in 0 ..< HEIGHT {
@@ -64,6 +79,7 @@ main :: proc() {
 			}
 		}
 		rl.UpdateTexture(texture, &fb)
+
 
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLACK)
