@@ -12,6 +12,8 @@ Ppu :: struct {
 	ly:          u8, // FF44
 	lyc:         u8, // FF45
 	bgp:         u8, // FF47
+	obp0:        u8, // FF48
+	obp1:        u8, // FF49
 	wy:          u8, // FF4A
 	wx:          u8, // FF4B
 	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
@@ -147,6 +149,10 @@ ppu_read :: proc(ppu: ^Ppu, addr: u16) -> u8 {
 		result = ppu.lyc
 	case 0xFF47:
 		result = ppu.bgp
+	case 0xFF48:
+		result = ppu.obp0
+	case 0xFF49:
+		result = ppu.obp1
 	case 0xFF4A:
 		result = ppu.wy
 	case 0xFF4B:
@@ -169,6 +175,10 @@ ppu_write :: proc(ppu: ^Ppu, addr: u16, value: u8) {
 		ppu.lyc = value
 	case 0xFF47:
 		ppu.bgp = value
+	case 0xFF48:
+		ppu.obp0 = value
+	case 0xFF49:
+		ppu.obp1 = value
 	case 0xFF4A:
 		ppu.wy = value
 	case 0xFF4B:
