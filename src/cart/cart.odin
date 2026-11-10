@@ -6,7 +6,14 @@ import "core:slice"
 MIN_ROM_SIZE :: 0x8000
 
 Cart :: struct {
-	rom: []byte,
+	rom:        []byte,
+	ram:        []byte,
+	// mbc:        Mbc,
+	battery:    bool,
+	rom_bank:   int,
+	ram_bank:   int,
+	ram_enable: bool,
+	mode:       byte,
 }
 
 Cart_Error :: enum {
