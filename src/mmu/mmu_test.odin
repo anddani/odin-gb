@@ -84,3 +84,19 @@ test_mmu_rom_via_cart :: proc(t: ^testing.T) {
 	mmu_write(&m, 0x0100, 0x00) // ROM is read-only -> ignored
 	testing.expect_value(t, mmu_read(&m, 0x0100), u8(0xC3))
 }
+
+// Writing 0xFF46 copies 160 bytes from (value<<8) into OAM.
+@(test)
+test_oam_dma :: proc(t: ^testing.T) {
+	m: Mmu
+	for i in 0 ..< 0xA0 {
+		m.wram[0][i] = u8(i) // source at 0xC000+i
+	}
+	mmu_write(&m, 0xFF46, 0xC0) // DMA from 0xC000
+
+	for i in 0 ..< 0xA0 {
+		testing.expect_value(t, m.oam[i], u8(i))
+	}
+	// a byte just past the DMA region must not be touched
+	testing.expect_value(t, m.oam[0x9F], u8(0x9F))
+}
