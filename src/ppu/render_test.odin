@@ -76,3 +76,46 @@ test_render_bg_disabled_blanks_row :: proc(t: ^testing.T) {
 		testing.expect_value(t, p.framebuffer[5][i], u8(0))
 	}
 }
+
+// Window covers the whole row when WX=7 (screen x 0), WY=0.
+@(test)
+test_window_covers_row :: proc(t: ^testing.T) {
+	vram: VRam
+	p: Ppu
+	p.vram = &vram
+	p.lcdc = 0x31 // BG + window on, tile data 0x8000, both maps 0x9800
+	p.bgp = 0xE4
+	p.wy = 0
+	p.wx = 7 // screen x 0
+	vram[0] = 0xFF // tile 0 -> color index 1
+	vram[1] = 0x00
+	vram[0x1800] = 0 // window map 0x9800 -> tile 0
+
+	render_scanline(&p, 0)
+
+	for i in 0 ..< 8 {
+		testing.expect_value(t, p.framebuffer[0][i], u8(1))
+	}
+}
+
+// WX offset: window starts at screen x 8; left of it is background.
+@(test)
+test_window_wx_boundary :: proc(t: ^testing.T) {
+	vram: VRam
+	p: Ppu
+	p.vram = &vram
+	p.lcdc = 0x71 // BG map 0x9800, window map 0x9C00 (bit 6), tile data 0x8000
+	p.bgp = 0xE4
+	p.wy = 0
+	p.wx = 15 // screen x 8
+
+	vram[0] = 0xFF;vram[1] = 0x00 // tile 0 -> color 1
+	vram[0x10] = 0x00;vram[0x11] = 0xFF // tile 1 -> color 2
+	vram[0x1800] = 1 // BG map -> tile 1 (color 2)
+	vram[0x1C00] = 0 // window map -> tile 0 (color 1)
+
+	render_scanline(&p, 0)
+
+	testing.expect_value(t, p.framebuffer[0][0], u8(2)) // BG (left of window)
+	testing.expect_value(t, p.framebuffer[0][8], u8(1)) // window
+}
