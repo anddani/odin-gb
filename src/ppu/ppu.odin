@@ -1,5 +1,7 @@
 package ppu
 
+import "core:slice"
+
 WIDTH :: 160
 HEIGHT :: 144
 VRam :: [0x2000]u8
@@ -17,11 +19,17 @@ Ppu :: struct {
 	wy:          u8, // FF4A
 	wx:          u8, // FF4B
 	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
+	oam:         ^[0xA0]u8,
 	framebuffer: [HEIGHT][WIDTH]u8,
+	bg_idx:      [WIDTH]u8,
 	dots:        int,
 	mode:        u8,
 }
 
+Sprite_Ref :: struct {
+	x:   u8,
+	idx: int,
+}
 
 sync_mode_to_stat :: proc(ppu: ^Ppu) {
 	ppu.stat = (ppu.stat & 0xFC) | ppu.mode
@@ -35,6 +43,7 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 	if ppu.lcdc & 0b1 == 0 {
 		// BG enable, set shade 0 for whole row
 		ppu.framebuffer[ly] = 0
+		ppu.bg_idx = 0
 		return
 	}
 
@@ -50,13 +59,13 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 		tileCol := bgX / 8
 		colInTile := bgX % 8
 
-		tile_index := ppu.vram[map_base + int(tileRow) * 32 + int(tileCol) - 0x8000]
+		tile_idx := ppu.vram[map_base + int(tileRow) * 32 + int(tileCol) - 0x8000]
 
 		tile_addr: u16
 		if ppu.lcdc & 0b10000 != 0 {
-			tile_addr = 0x8000 + u16(tile_index) * 16
+			tile_addr = 0x8000 + u16(tile_idx) * 16
 		} else {
-			tile_addr = u16(0x9000 + int(i8(tile_index)) * 16)
+			tile_addr = u16(0x9000 + int(i8(tile_idx)) * 16)
 		}
 
 		pixel_row_idx := tile_addr + u16(rowInTile) * 2 - 0x8000
@@ -65,11 +74,90 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 
 		bit := 7 - colInTile
 		color_idx := ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
+		ppu.bg_idx[x] = color_idx
 
 		shade := (ppu.bgp >> (color_idx * 2)) & 0x3
 		ppu.framebuffer[ly][x] = shade
 	}
 }
+
+render_sprites :: proc(ppu: ^Ppu, ly: u8) {
+	sprite_height: u8 = ppu.lcdc & 0b100 == 0 ? 8 : 16
+
+	on_line: [10]Sprite_Ref
+	count := 0
+	for i := 0; i < 40 && count < 10; i += 1 {
+		oam_y := ppu.oam[i * 4]
+		screen_y := int(oam_y) - 16
+		if int(ly) >= screen_y && int(ly) < screen_y + int(sprite_height) {
+			on_line[count] = {ppu.oam[i * 4 + 1], i}
+			count += 1
+		}
+	}
+
+	slice.sort_by(on_line[:count], proc(a, b: Sprite_Ref) -> bool {
+		if a.x != b.x {
+			return a.x < b.x
+		}
+		return a.idx < b.idx
+	})
+
+	covered: [WIDTH]bool
+	for s in 0 ..< count {
+		idx := on_line[s].idx
+		oam_y := ppu.oam[idx * 4]
+		oam_x := ppu.oam[idx * 4 + 1]
+		tile := ppu.oam[idx * 4 + 2]
+		attr := ppu.oam[idx * 4 + 3]
+
+		screen_y := int(oam_y) - 16
+		screen_x := int(oam_x) - 8
+
+		row := int(ly) - screen_y
+		if attr & 0x40 != 0 {
+			row = int(sprite_height) - 1 - row
+		}
+
+		if sprite_height == 16 {
+			tile &= 0xFE
+			if row >= 8 {
+				tile |= 1
+				row -= 8
+			}
+		}
+
+		addr := 0x8000 + int(tile) * 16 + row * 2
+		lo := ppu.vram[addr - 0x8000]
+		hi := ppu.vram[addr - 0x8000 + 1]
+
+		for col in 0 ..< 8 {
+			bit := attr & 0x20 != 0 ? col : 7 - col
+			color_idx := ((hi >> u8(bit)) & 1) << 1 | ((lo >> u8(bit)) & 1)
+
+			if color_idx == 0 {
+				continue
+			}
+
+			x := screen_x + col
+			if x < 0 || x >= 160 {
+				continue
+			}
+			if covered[x] {
+				continue
+			}
+
+			covered[x] = true
+			if attr & 0x80 != 0 && ppu.bg_idx[x] != 0 {
+				continue
+			}
+
+			palette := attr & 0x10 != 0 ? ppu.obp1 : ppu.obp0
+			shade := (palette >> (color_idx * 2)) & 0x3
+			ppu.framebuffer[ly][x] = shade
+		}
+	}
+}
+
 
 ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 	vblank, stat := false, false
@@ -121,6 +209,9 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 		sync_mode_to_stat(ppu)
 		if new_mode == 0 {
 			render_scanline(ppu, ppu.ly)
+			if ppu.lcdc & 0b10 != 0 {
+				render_sprites(ppu, ppu.ly)
+			}
 		}
 		if new_mode == 0 && ppu.stat & 0x08 != 0 ||
 		   new_mode == 2 && ppu.stat & 0x20 != 0 ||
