@@ -111,4 +111,5 @@ cart_write :: proc(cart: ^Cart, addr: u16, value: byte) {
 
 cart_destroy :: proc(c: ^Cart) {
 	delete(c.rom)
+	delete(c.ram)
 }
