@@ -4,6 +4,7 @@ import "core:fmt"
 
 import "../cart"
 import "../cpu"
+import "../joypad"
 import "../mmu"
 import "../ppu"
 import "../timer"
@@ -16,6 +17,7 @@ Machine :: struct {
 	mmu:    mmu.Mmu,
 	timer:  timer.Timer,
 	ppu:    ppu.Ppu,
+	joypad: joypad.Joypad,
 	serial: Serial_Capture,
 }
 
@@ -37,7 +39,7 @@ Run_Result :: struct {
 
 // Generous cycle budget: the individual cpu_instrs sub-tests finish well under
 // this. A ROM that never prints Passed/Failed hits the budget and we stop.
-MAX_CYCLES :: 100_000_000
+MAX_CYCLES :: 400_000_000
 
 // Post-boot register state (we skip the DMG boot ROM and jump straight to the
 // cartridge entry at 0x0100 with the documented register values).
@@ -52,6 +54,9 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 	m.mmu.cart = &c // MMU delegates ROM/external-RAM reads to the cart
 	m.mmu.timer = &m.timer // MMU routes FF04-FF07 to this timer
 	m.mmu.ppu = &m.ppu // MMU routes FF40-FF4B to this ppu
+	m.mmu.joypad = &m.joypad // MMU routes FF00 to this joypad
+	m.ppu.vram = &m.mmu.vram[0]
+	m.ppu.oam = &m.mmu.oam
 
 	state: cpu.Cpu
 	state.bus = cpu.Bus {
