@@ -97,3 +97,54 @@ test_no_leak_on_destroy :: proc(t: ^testing.T) {
 
 	testing.expectf(t, leaked == 0, "expected 0 live allocations, found %d", leaked)
 }
+
+// --- header parsing (M3) ---
+
+@(test)
+test_parse_mbc1_battery_and_ram :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+	data[0x0147] = 0x03 // MBC1 + RAM + BATTERY
+	data[0x0149] = 0x03 // 32 KB external RAM
+	c, err := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	testing.expect_value(t, err, Cart_Error.None)
+	testing.expect_value(t, c.mbc, Mbc.MBC1)
+	testing.expect(t, c.battery, "battery flag set")
+	testing.expect_value(t, len(c.ram), 32 * 1024)
+	testing.expect_value(t, c.rom_bank, 1)
+}
+
+@(test)
+test_parse_rom_only_no_ram :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+	data[0x0147] = 0x00 // ROM only
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	testing.expect_value(t, c.mbc, Mbc.None)
+	testing.expect(t, !c.battery, "no battery")
+	testing.expect(t, c.ram == nil, "no external RAM allocated")
+}
+
+// Allocating external RAM must not leak on destroy.
+@(test)
+test_no_leak_with_ram :: proc(t: ^testing.T) {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	defer mem.tracking_allocator_destroy(&track)
+
+	leaked: int
+	{
+		context.allocator = mem.tracking_allocator(&track)
+		data := make([]byte, 0x8000)
+		data[0x0149] = 0x02 // 8 KB RAM
+		c, _ := cart_from_bytes(data)
+		delete(data)
+		cart_destroy(&c)
+		leaked = len(track.allocation_map)
+	}
+	testing.expectf(t, leaked == 0, "leaked %d allocations", leaked)
+}
