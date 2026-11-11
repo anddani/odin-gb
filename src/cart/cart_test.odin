@@ -148,3 +148,58 @@ test_no_leak_with_ram :: proc(t: ^testing.T) {
 	}
 	testing.expectf(t, leaked == 0, "leaked %d allocations", leaked)
 }
+
+// --- MBC1 banking ---
+
+@(test)
+test_mbc1_rom_banking :: proc(t: ^testing.T) {
+	// 4 banks (64 KB). Stamp each bank's first byte with its bank number.
+	data := make([]byte, 4 * 0x4000)
+	defer delete(data)
+	data[0x0147] = 0x01 // MBC1
+	for b in 0 ..< 4 {data[b * 0x4000] = u8(b)}
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	// bank 0 fixed at 0x0000
+	testing.expect_value(t, cart_read(&c, 0x0000), u8(0))
+	// default switchable bank is 1
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(1))
+	// select bank 2
+	cart_write(&c, 0x2000, 0x02)
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(2))
+	// select bank 3
+	cart_write(&c, 0x2000, 0x03)
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(3))
+}
+
+// Writing bank 0 to the 0x2000 register selects bank 1 (the 0->1 quirk).
+@(test)
+test_mbc1_bank0_quirk :: proc(t: ^testing.T) {
+	data := make([]byte, 4 * 0x4000)
+	defer delete(data)
+	data[0x0147] = 0x01
+	data[0x4000] = 0xAA // bank 1 marker
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+	cart_write(&c, 0x2000, 0x00) // request bank 0
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(0xAA)) // got bank 1
+}
+
+// External RAM: disabled -> 0xFF; enabled -> read/write round-trips.
+@(test)
+test_mbc1_ram :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+	data[0x0147] = 0x03 // MBC1+RAM+battery
+	data[0x0149] = 0x02 // 8 KB
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	cart_write(&c, 0xA000, 0x42) // RAM disabled by default -> dropped
+	testing.expect_value(t, cart_read(&c, 0xA000), u8(0xFF))
+
+	cart_write(&c, 0x0000, 0x0A) // enable RAM
+	cart_write(&c, 0xA000, 0x42)
+	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x42))
+}
