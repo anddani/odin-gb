@@ -1,9 +1,7 @@
 package cart
 
 import "core:os"
-import "core:path/filepath"
 import "core:slice"
-import "core:strings"
 
 MIN_ROM_SIZE :: 0x8000
 
@@ -99,10 +97,8 @@ cart_from_file :: proc(path: string) -> (Cart, Cart_Error) {
 		return cart, cart_err
 	}
 
-	// Get the save path by replacing the rom extension with ".sav"
-	ext := filepath.ext(path)
-	stem := path[:len(path) - len(ext)]
-	cart.save_path = strings.concatenate({stem, ".sav"})
+	set_save_path(&cart, path)
+	copy_save_to_ram(&cart)
 
 	return cart, cart_err
 }
