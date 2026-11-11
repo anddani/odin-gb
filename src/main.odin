@@ -86,6 +86,7 @@ main :: proc() {
 		rl.DrawTextureEx(texture, {0, 0}, 0, SCALE, rl.WHITE)
 		rl.EndDrawing()
 	}
+	cart.cart_save_ram(&gb.cart)
 
 	rl.UnloadTexture(texture)
 	rl.CloseWindow()

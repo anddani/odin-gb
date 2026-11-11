@@ -97,8 +97,8 @@ cart_from_file :: proc(path: string) -> (Cart, Cart_Error) {
 		return cart, cart_err
 	}
 
-	set_save_path(&cart, path)
-	copy_save_to_ram(&cart)
+	cart_set_save_path(&cart, path)
+	cart_load_ram(&cart)
 
 	return cart, cart_err
 }
