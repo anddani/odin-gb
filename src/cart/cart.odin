@@ -51,6 +51,20 @@ parse_cart_type :: proc(b: byte) -> (mbc: Mbc, battery: bool) {
 	return .None, false
 }
 
+ram_size_from :: proc(b: byte) -> int {
+	switch b {
+	case 0x02:
+		return 8 * 1024
+	case 0x03:
+		return 32 * 1024
+	case 0x04:
+		return 128 * 1024
+	case 0x05:
+		return 64 * 1024
+	}
+	return 0
+}
+
 cart_from_bytes :: proc(data: []byte) -> (Cart, Cart_Error) {
 	if len(data) < MIN_ROM_SIZE {
 		return {}, Cart_Error.Too_Small
@@ -60,6 +74,11 @@ cart_from_bytes :: proc(data: []byte) -> (Cart, Cart_Error) {
 		rom = slice.clone(data),
 	}
 	c.mbc, c.battery = parse_cart_type(data[0x147])
+	ram_bytes := ram_size_from(data[0x0149])
+	if ram_bytes > 0 {
+		c.ram = make([]byte, ram_bytes)
+	}
+	c.rom_bank = 1
 
 	return c, Cart_Error.None
 }
