@@ -39,6 +39,10 @@ gb_init :: proc(gb: ^Gameboy, rom_path: string) -> cart.Cart_Error {
 		gb.mmu.joypad = &gb.joypad
 		gb.ppu.vram = &gb.mmu.vram[0]
 		gb.ppu.oam = &gb.mmu.oam
+		gb.ppu.lcdc = 0x91
+		gb.ppu.bgp = 0xFC
+		gb.ppu.obp0 = 0xFF
+		gb.ppu.obp1 = 0xFF
 		gb.cpu.bus = cpu.Bus {
 			ctx   = gb,
 			read  = gb_read,
