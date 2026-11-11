@@ -1,7 +1,9 @@
 package cart
 
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
+import "core:strings"
 
 MIN_ROM_SIZE :: 0x8000
 
@@ -14,6 +16,7 @@ Cart :: struct {
 	ram_bank:   int,
 	ram_enable: bool,
 	mode:       byte,
+	save_path:  string,
 }
 
 Mbc :: enum {
@@ -84,16 +87,28 @@ cart_from_bytes :: proc(data: []byte) -> (Cart, Cart_Error) {
 }
 
 cart_from_file :: proc(path: string) -> (Cart, Cart_Error) {
-	data, err := os.read_entire_file_from_path(path, context.allocator)
-	if err != nil {
+	file_data, file_err := os.read_entire_file_from_path(path, context.allocator)
+	if file_err != nil {
 		return {}, Cart_Error.File_Unreadable
 	}
-	defer delete(data)
+	defer delete(file_data)
 
-	return cart_from_bytes(data)
+	cart, cart_err := cart_from_bytes(file_data)
+
+	if cart_err != .None {
+		return cart, cart_err
+	}
+
+	// Get the save path by replacing the rom extension with ".sav"
+	ext := filepath.ext(path)
+	stem := path[:len(path) - len(ext)]
+	cart.save_path = strings.concatenate({stem, ".sav"})
+
+	return cart, cart_err
 }
 
 cart_destroy :: proc(c: ^Cart) {
+	delete(c.save_path)
 	delete(c.rom)
 	delete(c.ram)
 }
