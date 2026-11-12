@@ -224,3 +224,49 @@ test_ch2_envelope_waits_period :: proc(t: ^testing.T) {
 	clock_envelope(&a) // 1->0 -> step
 	testing.expect_value(t, a.ch2.volume, u8(1))
 }
+
+// --- Channel 2 waveform output ---
+
+@(test)
+test_ch2_square_wave :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF16, 0x80) // NR21: duty 2 (50%), length 0
+	apu_write(&a, 0xFF17, 0xA0) // NR22: volume 10, no envelope
+	apu_write(&a, 0xFF18, 0x00) // NR23: freq low
+	apu_write(&a, 0xFF19, 0x87) // NR24: trigger, freq high 7 -> freq 0x700=1792, period (2048-1792)*4=1024
+
+	// duty 2 pattern is {1,0,0,0,0,1,1,1}; duty_pos starts 0 -> output volume*pattern[0]=10
+	seen_high := false
+	seen_low := false
+	for i in 0 ..< 16 {
+		out := ch2_output(&a)
+		if out == 10 {seen_high = true}
+		if out == 0 {seen_low = true}
+		ch2_step(&a, 1024) // advance exactly one duty step
+	}
+	testing.expect(t, seen_high, "square wave reaches volume 10")
+	testing.expect(t, seen_low, "square wave reaches 0")
+}
+
+@(test)
+test_ch2_silent_when_disabled :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.enabled = false
+	a.ch2.volume = 15
+	testing.expect_value(t, ch2_output(&a), u8(0))
+}
+
+@(test)
+test_ch2_duty_pos_advances :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF17, 0xF0) // NR22: DAC on so trigger enables
+	apu_write(&a, 0xFF18, 0x00) // freq low 0
+	apu_write(&a, 0xFF19, 0x80) // trigger, freq 0 -> period 8192, freq_timer loaded
+	a.ch2.duty_pos = 0
+	ch2_step(&a, 8192)
+	testing.expect_value(t, a.ch2.duty_pos, u8(1))
+	ch2_step(&a, 8192 * 3)
+	testing.expect_value(t, a.ch2.duty_pos, u8(4))
+}
