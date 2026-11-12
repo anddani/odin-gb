@@ -1,11 +1,13 @@
 package apu
 
+MAX_VOLUME :: 15
 DUTY_TABLE := [4][8]u8 {
 	{0, 0, 0, 0, 0, 0, 0, 1}, // 12.5%
 	{1, 0, 0, 0, 0, 0, 0, 1}, // 25%
 	{1, 0, 0, 0, 0, 1, 1, 1}, // 50%
 	{0, 1, 1, 1, 1, 1, 1, 0}, // 75%
 }
+
 
 Channel :: struct {
 	enabled:       bool,
@@ -50,4 +52,29 @@ square_trigger :: proc(ch: ^Channel) {
 
 	ch.volume = ch.env_initial
 	ch.env_timer = int(ch.env_period)
+}
+
+channel_length :: proc(ch: ^Channel) {
+	if ch.length_enable && ch.length > 0 {
+		ch.length -= 1
+		if ch.length == 0 {
+			ch.enabled = false
+		}
+	}
+}
+
+channel_envelope :: proc(ch: ^Channel) {
+	if ch.env_period == 0 {
+		return
+	}
+	ch.env_timer -= 1
+	if ch.env_timer <= 0 {
+		ch.env_timer = int(ch.env_period)
+		if ch.env_add && ch.volume < MAX_VOLUME {
+			ch.volume += 1
+		}
+		if !ch.env_add && ch.volume > 0 {
+			ch.volume -= 1
+		}
+	}
 }

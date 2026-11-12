@@ -1,5 +1,9 @@
 package apu
 
+NR11 :: 0xFF11 // bit 7-6 duty, bit 5-0 length load
+NR12 :: 0xFF12 // bit 7-4 init volume, bit 3 env direction, bit 2-0 env period
+NR13 :: 0xFF13 // frequency low 8 bits
+NR14 :: 0xFF14 // bit 7 trigger, bit 6 length enable, bit 2-0 frequency high 3 bits
 NR21 :: 0xFF16 // bit 7-6 duty, bit 5-0 length load
 NR22 :: 0xFF17 // bit 7-4 init volume, bit 3 env direction, bit 2-0 env period
 NR23 :: 0xFF18 // frequency low 8 bits
@@ -11,6 +15,7 @@ SAMPLE_BUF_SIZE :: 8192
 
 Apu :: struct {
 	regs:           [0x30]u8,
+	ch1:            Channel,
 	ch2:            Channel,
 	power:          bool,
 	fs_counter:     int,
@@ -75,6 +80,7 @@ apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
 
 
 apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
+	ch1 := &apu.ch1
 	ch2 := &apu.ch2
 	if addr == NR52 {
 		apu.power = (value & 0x80) != 0
@@ -92,6 +98,29 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 
 	apu.regs[addr - 0xFF10] = value
 	switch addr {
+	case NR11:
+		ch1.duty = value >> 6
+		ch1.length = 64 - int(value & 0x3F)
+
+	case NR12:
+		ch1.env_period = value & 0x07
+		ch1.env_add = value & 0x08 != 0
+		ch1.env_initial = value >> 4
+		ch1.dac_on = value & 0xF8 != 0
+		if !ch1.dac_on {
+			ch1.enabled = false
+		}
+
+	case NR13:
+		ch1.freq = int(value) | (int(apu.regs[NR14 - 0xFF10] & 0x07) << 8)
+
+	case NR14:
+		ch1.length_enable = value & 0x40 != 0
+		ch1.freq = int(apu.regs[NR13 - 0xFF10]) | (int(value & 0x07) << 8)
+		if value & 0x80 != 0 {
+			square_trigger(&apu.ch1)
+		}
+
 	case NR21:
 		ch2.duty = value >> 6
 		ch2.length = 64 - int(value & 0x3F)
@@ -104,7 +133,6 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 		if !ch2.dac_on {
 			ch2.enabled = false
 		}
-
 
 	case NR23:
 		ch2.freq = int(value) | (int(apu.regs[NR24 - 0xFF10] & 0x07) << 8)
