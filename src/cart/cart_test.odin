@@ -318,3 +318,43 @@ test_mbc3_rtc_stub :: proc(t: ^testing.T) {
 	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x00)) // stub, no crash
 	cart_write(&c, 0xA000, 0x42) // RTC write ignored (no crash)
 }
+
+// --- MBC5 ---
+
+// 9-bit ROM bank: select a bank > 255 via the low-8 (0x2000) + bit-8 (0x3000) regs.
+@(test)
+test_mbc5_9bit_rom_banking :: proc(t: ^testing.T) {
+	// 512 banks (8 MB). Mark bank N's first byte with N (low 8 bits).
+	data := make([]byte, 512 * 0x4000)
+	defer delete(data)
+	data[0x0147] = 0x19 // MBC5
+	for b in 0 ..< 512 {data[b * 0x4000] = u8(b)}
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	// bank 300 = 0x12C -> low byte 0x2C, bit 8 = 1
+	cart_write(&c, 0x2000, 0x2C) // low 8
+	cart_write(&c, 0x3000, 0x01) // bit 8
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(0x2C)) // bank 300's marker (300 & 0xFF)
+
+	// MBC5 allows bank 0 in the switchable window (no 0->1 quirk)
+	cart_write(&c, 0x2000, 0x00)
+	cart_write(&c, 0x3000, 0x00)
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(0)) // bank 0, NOT 1
+}
+
+// MBC5 has no RTC: all RAM banks (incl. >3) are real.
+@(test)
+test_mbc5_high_ram_bank :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+	data[0x0147] = 0x1A // MBC5+RAM
+	data[0x0149] = 0x04 // 128 KB (16 banks)
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	cart_write(&c, 0x0000, 0x0A) // enable
+	cart_write(&c, 0x4000, 0x07) // RAM bank 7 (would be dropped by MBC3's <=3 guard)
+	cart_write(&c, 0xA000, 0x5E)
+	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x5E))
+}
