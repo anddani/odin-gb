@@ -47,12 +47,8 @@ cart_read_mbc3 :: proc(cart: ^Cart, addr: u16) -> byte {
 		return rom_read(cart, addr)
 
 	case addr >= 0xA000 && addr < 0xC000:
-		if !cart.ram_enable || len(cart.ram) == 0 {
-			return 0xFF
-		}
 		if cart.ram_bank <= 3 {
-			off := cart.ram_bank * 0x2000 + int(addr - 0xA000)
-			return cart.ram[off % len(cart.ram)]
+			return ram_read(cart, addr)
 		} else {
 			return 0x00 // FIXME: stub
 		}
