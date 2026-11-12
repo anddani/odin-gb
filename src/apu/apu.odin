@@ -170,5 +170,8 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 
 	case NR32:
 		ch3.wave_shift = (value >> 5) & 3
+
+	case NR33:
+		ch3.freq = int(value) | (int(apu.regs[NR34 - 0xFF10] & 7) << 8)
 	}
 }
