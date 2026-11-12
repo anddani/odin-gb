@@ -102,3 +102,46 @@ test_fs_cadence_schedule :: proc(t: ^testing.T) {
 	testing.expect_value(t, sc, 2) // 128 Hz
 	testing.expect_value(t, ec, 1) // 64 Hz
 }
+
+// --- Channel 2 trigger ---
+
+@(test)
+test_ch2_trigger_enables :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF17, 0xF0) // NR22: volume 15, no envelope
+	apu_write(&a, 0xFF18, 0x00) // NR23: freq low
+	apu_write(&a, 0xFF19, 0x87) // NR24: trigger + freq high 7
+	testing.expect(t, a.ch2.enabled, "trigger enables channel")
+	testing.expect_value(t, a.ch2.volume, u8(15))
+	// freq = 0x700 = 1792 -> timer = (2048-1792)*4 = 1024
+	testing.expect_value(t, a.ch2.freq_timer, 1024)
+}
+
+@(test)
+test_ch2_length_inverted_load :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF16, 0x30) // NR21: duty=0, length data=0x30
+	testing.expect_value(t, a.ch2.length, 64 - 0x30)
+	testing.expect_value(t, a.ch2.duty, u8(0))
+}
+
+@(test)
+test_ch2_dac_off_prevents_enable :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF17, 0x00) // NR22: volume 0, no direction -> DAC off
+	apu_write(&a, 0xFF19, 0x80) // trigger
+	testing.expect(t, !a.ch2.enabled, "DAC off -> trigger cannot enable")
+}
+
+@(test)
+test_ch2_trigger_reloads_length_if_zero :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	a.ch2.length = 0
+	apu_write(&a, 0xFF17, 0xF0) // keep DAC on
+	apu_write(&a, 0xFF19, 0x80) // trigger
+	testing.expect_value(t, a.ch2.length, 64) // reloaded
+}
