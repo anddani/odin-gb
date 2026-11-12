@@ -6,6 +6,8 @@ NR23 :: 0xFF18 // frequency low 8 bits
 NR24 :: 0xFF19 // bit 7 trigger, bit 6 length enable, bit 2-0 frequency high 3 bits
 NR52 :: 0xFF26
 FRAME_SQ_PERIOD :: 8192
+CYCLES_PER_SAMPLE :: 87
+SAMPLE_BUF_SIZE :: 8192
 
 DUTY_TABLE := [4][8]u8 {
 	{0, 0, 0, 0, 0, 0, 0, 1}, // 12.5%
@@ -15,11 +17,15 @@ DUTY_TABLE := [4][8]u8 {
 }
 
 Apu :: struct {
-	regs:       [0x30]u8,
-	power:      bool,
-	fs_counter: int,
-	fs_step:    u8,
-	ch2:        Channel,
+	regs:           [0x30]u8,
+	ch2:            Channel,
+	power:          bool,
+	fs_counter:     int,
+	fs_step:        u8,
+	sample_counter: int,
+	samples:        [SAMPLE_BUF_SIZE]i16,
+	sample_w:       int,
+	sample_r:       int,
 }
 
 Channel :: struct {
@@ -57,7 +63,25 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 		apu.fs_step = (apu.fs_step + 1) & 7
 	}
 
+	apu.sample_counter += cycles
+	for apu.sample_counter >= CYCLES_PER_SAMPLE {
+		apu.sample_counter -= CYCLES_PER_SAMPLE
+		s := i16((int(ch2_output(apu)) - 8) * 2000)
+		apu.samples[apu.sample_w] = s
+		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
+	}
+
 	ch2_step(apu, cycles)
+}
+
+apu_drain :: proc(apu: ^Apu, out: []i16) -> int {
+	n := 0
+	for apu.sample_r != apu.sample_w && n < len(out) {
+		out[n] = apu.samples[apu.sample_r]
+		apu.sample_r = (apu.sample_r + 1) % SAMPLE_BUF_SIZE
+		n += 1
+	}
+	return n
 }
 
 apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
