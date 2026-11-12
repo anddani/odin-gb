@@ -1,5 +1,6 @@
 package apu
 
+NR10 :: 0xFF10
 NR11 :: 0xFF11 // bit 7-6 duty, bit 5-0 length load
 NR12 :: 0xFF12 // bit 7-4 init volume, bit 3 env direction, bit 2-0 env period
 NR13 :: 0xFF13 // frequency low 8 bits
@@ -100,6 +101,11 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 
 	apu.regs[addr - 0xFF10] = value
 	switch addr {
+	case NR10:
+		ch1.sweep_period = int((value >> 4) & 0x07)
+		ch1.sweep_down = value & 0x08 != 0
+		ch1.sweep_shift = int(value & 0x07)
+
 	case NR11:
 		ch1.duty = value >> 6
 		ch1.length = 64 - int(value & 0x3F)
