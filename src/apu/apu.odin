@@ -167,5 +167,8 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 
 	case NR31:
 		ch3.length = 256 - int(value)
+
+	case NR32:
+		ch3.wave_shift = (value >> 5) & 3
 	}
 }
