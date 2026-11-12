@@ -51,11 +51,13 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 	apu.sample_counter += cycles
 	for apu.sample_counter >= CYCLES_PER_SAMPLE {
 		apu.sample_counter -= CYCLES_PER_SAMPLE
-		s := i16((int(square_output(&apu.ch2)) - 8) * 2000)
+		mix := int(square_output(&apu.ch1)) + int(square_output(&apu.ch2))
+		s := i16((mix - 16) * 1000)
 		apu.samples[apu.sample_w] = s
 		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
 	}
 
+	square_step(&apu.ch1, cycles)
 	square_step(&apu.ch2, cycles)
 }
 
