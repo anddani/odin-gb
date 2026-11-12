@@ -270,3 +270,32 @@ test_ch2_duty_pos_advances :: proc(t: ^testing.T) {
 	ch2_step(&a, 8192 * 3)
 	testing.expect_value(t, a.ch2.duty_pos, u8(4))
 }
+
+// --- sample buffer / drain ---
+
+@(test)
+test_apu_produces_samples :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF17, 0xF0) // NR22 volume 15
+	apu_write(&a, 0xFF16, 0x80) // duty 50%
+	apu_write(&a, 0xFF19, 0x87) // trigger
+	apu_step(&a, 4194304 / 60) // ~one frame of cycles
+	out: [2048]i16
+	n := apu_drain(&a, out[:])
+	testing.expect(t, n > 700 && n < 900, "about 800 samples per frame") // 48000/60
+}
+
+@(test)
+test_apu_drain_empties :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF17, 0xF0)
+	apu_write(&a, 0xFF19, 0x80)
+	apu_step(&a, 87 * 10) // ~10 samples
+	out: [64]i16
+	n1 := apu_drain(&a, out[:])
+	testing.expect(t, n1 >= 9 && n1 <= 11, "drained ~10")
+	n2 := apu_drain(&a, out[:])
+	testing.expect_value(t, n2, 0) // nothing left
+}
