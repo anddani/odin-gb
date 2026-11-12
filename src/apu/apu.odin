@@ -40,6 +40,8 @@ Channel :: struct {
 	env_period:    u8,
 	env_add:       bool,
 	freq:          int,
+	env_initial:   u8,
+	dac_on:        bool,
 }
 
 apu_step :: proc(apu: ^Apu, cycles: int) {
@@ -67,12 +69,12 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 	apu.sample_counter += cycles
 	for apu.sample_counter >= CYCLES_PER_SAMPLE {
 		apu.sample_counter -= CYCLES_PER_SAMPLE
-		s := i16((int(ch2_output(apu)) - 8) * 2000)
+		s := i16((int(ch2_output(&apu.ch2)) - 8) * 2000)
 		apu.samples[apu.sample_w] = s
 		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
 	}
 
-	ch2_step(apu, cycles)
+	ch2_step(&apu.ch2, cycles)
 }
 
 apu_drain :: proc(apu: ^Apu, out: []i16) -> int {
@@ -120,7 +122,12 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	case NR22:
 		ch2.env_period = value & 0x07
 		ch2.env_add = value & 0x08 != 0
-		ch2.volume = value >> 4
+		ch2.env_initial = value >> 4
+		ch2.dac_on = value & 0xF8 != 0
+		if !ch2.dac_on {
+			ch2.enabled = false
+		}
+
 
 	case NR23:
 		ch2.freq = int(value) | (int(apu.regs[NR24 - 0xFF10] & 0x07) << 8)
@@ -129,7 +136,7 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 		ch2.length_enable = value & 0x40 != 0
 		ch2.freq = int(apu.regs[NR23 - 0xFF10]) | (int(value & 0x07) << 8)
 		if value & 0x80 != 0 {
-			ch2_trigger(apu)
+			square_trigger(&apu.ch2)
 		}
 	}
 }
