@@ -7,6 +7,13 @@ NR24 :: 0xFF19 // bit 7 trigger, bit 6 length enable, bit 2-0 frequency high 3 b
 NR52 :: 0xFF26
 FRAME_SQ_PERIOD :: 8192
 
+DUTY_TABLE := [4][8]u8 {
+	{0, 0, 0, 0, 0, 0, 0, 1}, // 12.5%
+	{1, 0, 0, 0, 0, 0, 0, 1}, // 25%
+	{1, 0, 0, 0, 0, 1, 1, 1}, // 50%
+	{0, 1, 1, 1, 1, 1, 1, 0}, // 75%
+}
+
 Apu :: struct {
 	regs:       [0x30]u8,
 	power:      bool,
