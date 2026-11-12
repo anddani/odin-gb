@@ -1,6 +1,7 @@
 package cart
 
 import "core:mem"
+import "core:os"
 import "core:slice"
 import "core:testing"
 
@@ -202,4 +203,64 @@ test_mbc1_ram :: proc(t: ^testing.T) {
 	cart_write(&c, 0x0000, 0x0A) // enable RAM
 	cart_write(&c, 0xA000, 0x42)
 	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x42))
+}
+
+// --- battery save round-trip ---
+
+@(test)
+test_battery_save_roundtrip :: proc(t: ^testing.T) {
+	// Build a minimal MBC1+RAM+battery ROM on disk.
+	rom := make([]byte, 0x8000)
+	defer delete(rom)
+	rom[0x0147] = 0x03 // MBC1+RAM+BATTERY
+	rom[0x0149] = 0x02 // 8 KB RAM
+	tmp_rom := "/tmp/odin-gb-savetest.gb"
+	tmp_sav := "/tmp/odin-gb-savetest.sav"
+	_ = os.write_entire_file(tmp_rom, rom)
+	defer os.remove(tmp_rom)
+	defer os.remove(tmp_sav)
+	os.remove(tmp_sav) // ensure clean start
+
+	// Session 1: load, write to RAM, save.
+	{
+		c, err := cart_from_file(tmp_rom)
+		defer cart_destroy(&c)
+		testing.expect_value(t, err, Cart_Error.None)
+		cart_write(&c, 0x0000, 0x0A) // enable RAM
+		cart_write(&c, 0xA000, 0x42)
+		cart_write(&c, 0xA123, 0x99)
+		cart_save_ram(&c)
+	}
+
+	// Session 2: reopen -- RAM must be restored from the .sav.
+	{
+		c, err := cart_from_file(tmp_rom)
+		defer cart_destroy(&c)
+		testing.expect_value(t, err, Cart_Error.None)
+		cart_write(&c, 0x0000, 0x0A) // enable RAM to read it back
+		testing.expect_value(t, cart_read(&c, 0xA000), u8(0x42))
+		testing.expect_value(t, cart_read(&c, 0xA123), u8(0x99))
+	}
+}
+
+// A non-battery cart must not write a .sav.
+@(test)
+test_no_save_without_battery :: proc(t: ^testing.T) {
+	rom := make([]byte, 0x8000)
+	defer delete(rom)
+	rom[0x0147] = 0x01 // MBC1, NO battery
+	rom[0x0149] = 0x02
+	tmp_rom := "/tmp/odin-gb-nobat.gb"
+	tmp_sav := "/tmp/odin-gb-nobat.sav"
+	_ = os.write_entire_file(tmp_rom, rom)
+	defer os.remove(tmp_rom)
+	os.remove(tmp_sav)
+
+	c, _ := cart_from_file(tmp_rom)
+	defer cart_destroy(&c)
+	cart_save_ram(&c)
+
+	sav_data, read_err := os.read_entire_file(tmp_sav, context.allocator)
+	defer delete(sav_data)
+	testing.expect(t, read_err != nil, "non-battery cart must not create a .sav")
 }
