@@ -173,5 +173,12 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 
 	case NR33:
 		ch3.freq = int(value) | (int(apu.regs[NR34 - 0xFF10] & 7) << 8)
+
+	case NR34:
+		ch3.length_enable = value & 0x40 != 0
+		ch3.freq = int(apu.regs[NR33 - 0xFF10]) | (int(value & 7) << 8)
+		if value & 0x80 != 0 {
+			wave_trigger(apu)
+		}
 	}
 }
