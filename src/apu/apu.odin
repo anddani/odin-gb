@@ -91,6 +91,7 @@ apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
 apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	ch1 := &apu.ch1
 	ch2 := &apu.ch2
+	ch3 := &apu.ch3
 	if addr == NR52 {
 		apu.power = (value & 0x80) != 0
 		if !apu.power {
@@ -156,6 +157,12 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 		ch2.freq = int(apu.regs[NR23 - 0xFF10]) | (int(value & 0x07) << 8)
 		if value & 0x80 != 0 {
 			square_trigger(&apu.ch2)
+		}
+
+	case NR30:
+		ch3.dac_on = value & 0x80 != 0
+		if !ch3.dac_on {
+			ch3.enabled = false
 		}
 	}
 }
