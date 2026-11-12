@@ -164,5 +164,8 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 		if !ch3.dac_on {
 			ch3.enabled = false
 		}
+
+	case NR31:
+		ch3.length = 256 - int(value)
 	}
 }
