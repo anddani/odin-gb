@@ -75,6 +75,8 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 			value = joypad.joypad_read(mmu.joypad)
 		case 0xFF04 ..= 0xFF07:
 			value = timer.timer_read(mmu.timer, addr)
+		case 0xFF10 ..= 0xFF3F:
+			value = apu.apu_read(mmu.apu, addr)
 		case 0xFF40 ..= 0xFF4B:
 			value = ppu.ppu_read(mmu.ppu, addr)
 		case:
@@ -130,6 +132,8 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 			joypad.joypad_write(mmu.joypad, value)
 		case 0xFF04 ..= 0xFF07:
 			timer.timer_write(mmu.timer, addr, value)
+		case 0xFF10 ..= 0xFF3F:
+			apu.apu_write(mmu.apu, addr, value)
 		case 0xFF40 ..= 0xFF45, 0xFF47 ..= 0xFF4B:
 			ppu.ppu_write(mmu.ppu, addr, value)
 		case 0xFF46:
