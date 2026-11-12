@@ -1,5 +1,6 @@
 package gameboy
 
+import "../apu"
 import "../cart"
 import "../cpu"
 import "../joypad"
@@ -14,6 +15,7 @@ Gameboy :: struct {
 	ppu:    ppu.Ppu,
 	cart:   cart.Cart,
 	joypad: joypad.Joypad,
+	apu:    apu.Apu,
 }
 
 FRAME_IN_TICKS :: 70224
