@@ -145,3 +145,82 @@ test_ch2_trigger_reloads_length_if_zero :: proc(t: ^testing.T) {
 	apu_write(&a, 0xFF19, 0x80) // trigger
 	testing.expect_value(t, a.ch2.length, 64) // reloaded
 }
+
+// --- Channel 2 length / envelope clocking ---
+
+@(test)
+test_ch2_length_disables :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.enabled = true
+	a.ch2.length_enable = true
+	a.ch2.length = 2
+	clock_length(&a)
+	testing.expect(t, a.ch2.enabled, "still on at length 1")
+	clock_length(&a)
+	testing.expect(t, !a.ch2.enabled, "disabled when length hits 0")
+}
+
+@(test)
+test_ch2_length_frozen_when_disabled :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.enabled = true
+	a.ch2.length_enable = false // length not counting
+	a.ch2.length = 3
+	clock_length(&a)
+	testing.expect_value(t, a.ch2.length, 3) // unchanged
+	testing.expect(t, a.ch2.enabled, "stays on")
+}
+
+// --- Channel 2 envelope ---
+
+@(test)
+test_ch2_envelope_up_clamps :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.env_period = 1
+	a.ch2.env_add = true
+	a.ch2.env_timer = 1
+	a.ch2.volume = 14
+	clock_envelope(&a)
+	testing.expect_value(t, a.ch2.volume, u8(15))
+	a.ch2.env_timer = 1
+	clock_envelope(&a)
+	testing.expect_value(t, a.ch2.volume, u8(15)) // clamped at 15
+}
+
+@(test)
+test_ch2_envelope_down_clamps :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.env_period = 1
+	a.ch2.env_add = false
+	a.ch2.env_timer = 1
+	a.ch2.volume = 1
+	clock_envelope(&a)
+	testing.expect_value(t, a.ch2.volume, u8(0))
+	a.ch2.env_timer = 1
+	clock_envelope(&a)
+	testing.expect_value(t, a.ch2.volume, u8(0)) // clamped at 0
+}
+
+@(test)
+test_ch2_envelope_period_zero_off :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.env_period = 0
+	a.ch2.env_add = true
+	a.ch2.volume = 5
+	clock_envelope(&a)
+	testing.expect_value(t, a.ch2.volume, u8(5)) // disabled -> no change
+}
+
+@(test)
+test_ch2_envelope_waits_period :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch2.env_period = 3
+	a.ch2.env_add = true
+	a.ch2.env_timer = 3
+	a.ch2.volume = 0
+	clock_envelope(&a) // timer 3->2
+	clock_envelope(&a) // 2->1
+	testing.expect_value(t, a.ch2.volume, u8(0)) // not yet
+	clock_envelope(&a) // 1->0 -> step
+	testing.expect_value(t, a.ch2.volume, u8(1))
+}
