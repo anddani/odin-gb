@@ -9,6 +9,11 @@ NR21 :: 0xFF16 // bit 7-6 duty, bit 5-0 length load
 NR22 :: 0xFF17 // bit 7-4 init volume, bit 3 env direction, bit 2-0 env period
 NR23 :: 0xFF18 // frequency low 8 bits
 NR24 :: 0xFF19 // bit 7 trigger, bit 6 length enable, bit 2-0 frequency high 3 bits
+NR30 :: 0xFF1A
+NR31 :: 0xFF1B
+NR32 :: 0xFF1C
+NR33 :: 0xFF1D
+NR34 :: 0xFF1E
 NR52 :: 0xFF26
 FRAME_SQ_PERIOD :: 8192
 CYCLES_PER_SAMPLE :: 87
