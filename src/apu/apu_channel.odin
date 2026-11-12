@@ -26,6 +26,8 @@ Channel :: struct {
 	sweep_timer:   int,
 	sweep_enabled: bool,
 	sweep_shadow:  int,
+	wave_pos:      u8,
+	wave_shift:    u8,
 	freq:          int,
 	env_initial:   u8,
 	dac_on:        bool,
