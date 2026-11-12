@@ -48,7 +48,6 @@ square_trigger :: proc(ch: ^Channel) {
 
 	ch.freq_timer = (2048 - ch.freq) * 4
 
-	// nr22 := apu.regs[NR22 - 0xFF10]
 	ch.volume = ch.env_initial
 	ch.env_timer = int(ch.env_period)
 }
