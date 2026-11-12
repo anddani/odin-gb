@@ -9,13 +9,6 @@ FRAME_SQ_PERIOD :: 8192
 CYCLES_PER_SAMPLE :: 87
 SAMPLE_BUF_SIZE :: 8192
 
-DUTY_TABLE := [4][8]u8 {
-	{0, 0, 0, 0, 0, 0, 0, 1}, // 12.5%
-	{1, 0, 0, 0, 0, 0, 0, 1}, // 25%
-	{1, 0, 0, 0, 0, 1, 1, 1}, // 50%
-	{0, 1, 1, 1, 1, 1, 1, 0}, // 75%
-}
-
 Apu :: struct {
 	regs:           [0x30]u8,
 	ch2:            Channel,
@@ -26,22 +19,6 @@ Apu :: struct {
 	samples:        [SAMPLE_BUF_SIZE]i16,
 	sample_w:       int,
 	sample_r:       int,
-}
-
-Channel :: struct {
-	enabled:       bool,
-	freq_timer:    int,
-	duty:          u8,
-	duty_pos:      u8,
-	length:        int,
-	length_enable: bool,
-	volume:        u8,
-	env_timer:     int,
-	env_period:    u8,
-	env_add:       bool,
-	freq:          int,
-	env_initial:   u8,
-	dac_on:        bool,
 }
 
 apu_step :: proc(apu: ^Apu, cycles: int) {
@@ -69,12 +46,12 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 	apu.sample_counter += cycles
 	for apu.sample_counter >= CYCLES_PER_SAMPLE {
 		apu.sample_counter -= CYCLES_PER_SAMPLE
-		s := i16((int(ch2_output(&apu.ch2)) - 8) * 2000)
+		s := i16((int(square_output(&apu.ch2)) - 8) * 2000)
 		apu.samples[apu.sample_w] = s
 		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
 	}
 
-	ch2_step(&apu.ch2, cycles)
+	square_step(&apu.ch2, cycles)
 }
 
 apu_drain :: proc(apu: ^Apu, out: []i16) -> int {

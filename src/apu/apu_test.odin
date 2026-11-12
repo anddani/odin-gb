@@ -240,10 +240,10 @@ test_ch2_square_wave :: proc(t: ^testing.T) {
 	seen_high := false
 	seen_low := false
 	for i in 0 ..< 16 {
-		out := ch2_output(&a.ch2)
+		out := square_output(&a.ch2)
 		if out == 10 {seen_high = true}
 		if out == 0 {seen_low = true}
-		ch2_step(&a.ch2, 1024) // advance exactly one duty step
+		square_step(&a.ch2, 1024) // advance exactly one duty step
 	}
 	testing.expect(t, seen_high, "square wave reaches volume 10")
 	testing.expect(t, seen_low, "square wave reaches 0")
@@ -254,7 +254,7 @@ test_ch2_silent_when_disabled :: proc(t: ^testing.T) {
 	a: Apu
 	a.ch2.enabled = false
 	a.ch2.volume = 15
-	testing.expect_value(t, ch2_output(&a.ch2), u8(0))
+	testing.expect_value(t, square_output(&a.ch2), u8(0))
 }
 
 @(test)
@@ -265,9 +265,9 @@ test_ch2_duty_pos_advances :: proc(t: ^testing.T) {
 	apu_write(&a, 0xFF18, 0x00) // freq low 0
 	apu_write(&a, 0xFF19, 0x80) // trigger, freq 0 -> period 8192, freq_timer loaded
 	a.ch2.duty_pos = 0
-	ch2_step(&a.ch2, 8192)
+	square_step(&a.ch2, 8192)
 	testing.expect_value(t, a.ch2.duty_pos, u8(1))
-	ch2_step(&a.ch2, 8192 * 3)
+	square_step(&a.ch2, 8192 * 3)
 	testing.expect_value(t, a.ch2.duty_pos, u8(4))
 }
 
