@@ -1,9 +1,13 @@
 package main
 
+import "base:runtime"
+import "core:c"
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import rl "vendor:raylib"
 
+import "apu"
 import "cart"
 import "gameboy"
 
@@ -20,6 +24,17 @@ SHADES := [4]rl.Color {
 
 Framebuffer :: [HEIGHT][WIDTH]rl.Color
 
+audio_apu: ^apu.Apu
+
+audio_callback :: proc "c" (buffer_data: rawptr, frames: c.uint) {
+	context = runtime.default_context()
+	out := slice.from_ptr(cast(^i16)buffer_data, int(frames))
+	n := apu.apu_drain(audio_apu, out)
+	for i in n ..< int(frames) {
+		out[i] = 0
+	}
+}
+
 make_image :: proc(fb: ^Framebuffer) -> rl.Image {
 	return rl.Image {
 		data = fb,
@@ -30,7 +45,6 @@ make_image :: proc(fb: ^Framebuffer) -> rl.Image {
 	}
 }
 
-
 main :: proc() {
 	if len(os.args) < 2 {
 		fmt.println("Provide path to rom")
@@ -38,7 +52,6 @@ main :: proc() {
 	}
 
 	rom_path := os.args[1]
-
 
 	gb := new(gameboy.Gameboy)
 	if err := gameboy.gb_init(gb, os.args[1]); err != .None {
@@ -55,6 +68,13 @@ main :: proc() {
 	img := make_image(&fb)
 	texture := rl.LoadTextureFromImage(img)
 
+	rl.InitAudioDevice()
+	stream := rl.LoadAudioStream(48000, 16, 1)
+	audio_apu = &gb.apu
+	rl.SetAudioStreamCallback(stream, audio_callback)
+	rl.PlayAudioStream(stream)
+	buf: [4096]i16
+
 	for !rl.WindowShouldClose() {
 		dirs: u8 = 0
 		if rl.IsKeyDown(.DOWN) {dirs |= 0b1000}
@@ -70,7 +90,6 @@ main :: proc() {
 		if rl.IsKeyDown(.X) {btns |= 0b0001}
 		gb.joypad.btns = btns
 
-
 		gameboy.gb_run_frame(gb)
 
 		for y in 0 ..< HEIGHT {
@@ -80,13 +99,15 @@ main :: proc() {
 		}
 		rl.UpdateTexture(texture, &fb)
 
-
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLACK)
 		rl.DrawTextureEx(texture, {0, 0}, 0, SCALE, rl.WHITE)
 		rl.EndDrawing()
 	}
 	cart.cart_save_ram(&gb.cart)
+
+	rl.UnloadAudioStream(stream)
+	rl.CloseAudioDevice()
 
 	rl.UnloadTexture(texture)
 	rl.CloseWindow()
