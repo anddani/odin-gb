@@ -18,6 +18,7 @@ Ppu :: struct {
 	obp1:        u8, // FF49
 	wy:          u8, // FF4A
 	wx:          u8, // FF4B
+	window_line: u8,
 	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
 	oam:         ^[0xA0]u8,
 	framebuffer: [HEIGHT][WIDTH]u8,
@@ -72,13 +73,15 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 	// Which 32x32 tile map
 	map_base := ppu.lcdc & 0b1000 != 0 ? 0x9C00 : 0x9800
 
+	window_drawn := false
 	for x in 0 ..< WIDTH {
 		window_active := ppu.lcdc & 0x20 != 0 && int(ly) >= int(ppu.wy) && x >= (int(ppu.wx) - 7)
 
 		idx: u8
 		if window_active {
+			window_drawn = true
 			win_x := x - (int(ppu.wx) - 7)
-			win_y := int(ly) - int(ppu.wy)
+			win_y := int(ppu.window_line)
 			map_base := ppu.lcdc & 0x40 != 0 ? 0x9C00 : 0x9800
 			tile_col := win_x / 8
 			tile_row := win_y / 8
@@ -96,6 +99,9 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 		shade := (ppu.bgp >> (idx * 2)) & 0x3
 		ppu.bg_idx[x] = idx
 		ppu.framebuffer[ly][x] = shade
+	}
+	if window_drawn {
+		ppu.window_line += 1
 	}
 }
 
@@ -203,6 +209,7 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 
 		// Entering VBlank
 		if ppu.ly == 144 {
+			ppu.window_line = 0
 			vblank = true
 		}
 	}
