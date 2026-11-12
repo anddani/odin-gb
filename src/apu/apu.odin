@@ -56,6 +56,8 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 
 		apu.fs_step = (apu.fs_step + 1) & 7
 	}
+
+	ch2_step(apu, cycles)
 }
 
 apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
@@ -67,27 +69,6 @@ apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
 	return apu.regs[addr - 0xFF10]
 }
 
-trigger_ch2 :: proc(apu: ^Apu) {
-	ch := &apu.ch2
-	ch.enabled = true
-
-	if ch.length == 0 {
-		ch.length = 64
-	}
-
-	freq := int(apu.regs[NR23 - 0xFF10]) | (int(apu.regs[NR24 - 0xFF10] & 0x07) << 8)
-	ch.freq_timer = (2048 - freq) * 4
-
-	nr22 := apu.regs[NR22 - 0xFF10]
-	ch.volume = nr22 >> 4
-	ch.env_period = nr22 & 0x07
-	ch.env_add = nr22 & 0x08 != 0
-	ch.env_timer = int(ch.env_period)
-
-	if nr22 & 0xF8 == 0 {
-		ch.enabled = false
-	}
-}
 
 apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	if addr == NR52 {
@@ -120,7 +101,7 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	case NR24:
 		apu.ch2.length_enable = value & 0x40 != 0
 		if value & 0x80 != 0 {
-			trigger_ch2(apu)
+			ch2_trigger(apu)
 		}
 	}
 }
