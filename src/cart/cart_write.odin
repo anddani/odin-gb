@@ -53,10 +53,36 @@ cart_write_mbc3 :: proc(cart: ^Cart, addr: u16, value: byte) {
 	case addr < 0x6000:
 		cart.ram_bank = int(value & 0x0F)
 
+	// No-op
 	case addr < 0x8000:
 
 	case addr >= 0xA000 && addr < 0xC000:
 		if cart.ram_enable && cart.ram_bank <= 3 && len(cart.ram) > 0 {
+			off := cart.ram_bank * 0x2000 + int(addr - 0xA000)
+			cart.ram[off % len(cart.ram)] = value
+		}
+	}
+}
+
+cart_write_mbc5 :: proc(cart: ^Cart, addr: u16, value: byte) {
+	switch {
+	case addr < 0x2000:
+		cart.ram_enable = (value & 0x0F) == 0x0A
+
+	case addr < 0x3000:
+		cart.rom_bank = (cart.rom_bank & 0x100) | int(value)
+
+	case addr < 0x4000:
+		cart.rom_bank = (cart.rom_bank & 0xFF) | (int(value & 1) << 8)
+
+	case addr < 0x6000:
+		cart.ram_bank = int(value & 0x0F)
+
+	// No-op
+	case addr < 0x8000:
+
+	case addr >= 0xA000 && addr < 0xC000:
+		if cart.ram_enable && len(cart.ram) > 0 {
 			off := cart.ram_bank * 0x2000 + int(addr - 0xA000)
 			cart.ram[off % len(cart.ram)] = value
 		}
@@ -72,6 +98,6 @@ cart_write :: proc(cart: ^Cart, addr: u16, value: byte) {
 	case .MBC3:
 		cart_write_mbc3(cart, addr, value)
 	case .MBC5:
-	// TODO
+		cart_write_mbc5(cart, addr, value)
 	}
 }
