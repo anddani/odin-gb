@@ -39,6 +39,7 @@ Channel :: struct {
 	env_timer:     int,
 	env_period:    u8,
 	env_add:       bool,
+	freq:          int,
 }
 
 apu_step :: proc(apu: ^Apu, cycles: int) {
@@ -95,6 +96,7 @@ apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
 
 
 apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
+	ch2 := &apu.ch2
 	if addr == NR52 {
 		apu.power = (value & 0x80) != 0
 		if !apu.power {
@@ -112,18 +114,20 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	apu.regs[addr - 0xFF10] = value
 	switch addr {
 	case NR21:
-		apu.ch2.duty = value >> 6
-		apu.ch2.length = 64 - int(value & 0x3F)
+		ch2.duty = value >> 6
+		ch2.length = 64 - int(value & 0x3F)
 
 	case NR22:
-		apu.ch2.env_period = value & 0x07
-		apu.ch2.env_add = value & 0x08 != 0
-		apu.ch2.volume = value >> 4
+		ch2.env_period = value & 0x07
+		ch2.env_add = value & 0x08 != 0
+		ch2.volume = value >> 4
 
 	case NR23:
+		ch2.freq = int(value) | (int(apu.regs[NR24 - 0xFF10] & 0x07) << 8)
 
 	case NR24:
-		apu.ch2.length_enable = value & 0x40 != 0
+		ch2.length_enable = value & 0x40 != 0
+		ch2.freq = int(apu.regs[NR23 - 0xFF10]) | (int(value & 0x07) << 8)
 		if value & 0x80 != 0 {
 			ch2_trigger(apu)
 		}
