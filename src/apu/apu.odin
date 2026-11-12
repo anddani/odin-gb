@@ -7,6 +7,15 @@ Apu :: struct {
 	power: bool,
 }
 
+apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {
+
+	if addr == NR52 {
+		status: u8 = 0
+		return (apu.power ? 0x80 : 0) | 0x70 | status
+	}
+
+	return apu.regs[addr - 0xFF10]
+}
 
 apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	if addr == NR52 {
