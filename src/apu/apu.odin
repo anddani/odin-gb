@@ -23,6 +23,7 @@ Apu :: struct {
 	regs:           [0x30]u8,
 	ch1:            Channel,
 	ch2:            Channel,
+	ch3:            Channel,
 	power:          bool,
 	fs_counter:     int,
 	fs_step:        u8,
