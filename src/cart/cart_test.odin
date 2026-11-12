@@ -264,3 +264,57 @@ test_no_save_without_battery :: proc(t: ^testing.T) {
 	defer delete(sav_data)
 	testing.expect(t, read_err != nil, "non-battery cart must not create a .sav")
 }
+
+// --- MBC3 ---
+
+@(test)
+test_mbc3_7bit_rom_banking :: proc(t: ^testing.T) {
+	// 128 banks (2 MB). Mark bank N's first byte with N (low 8 bits).
+	data := make([]byte, 128 * 0x4000)
+	defer delete(data)
+	data[0x0147] = 0x13 // MBC3+RAM+BATTERY
+	for b in 0 ..< 128 {data[b * 0x4000] = u8(b)}
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	// bank 100 needs 7 bits (MBC1's 5-bit register couldn't reach it)
+	cart_write(&c, 0x2000, 100)
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(100))
+	// bank 0 -> 1 quirk
+	cart_write(&c, 0x2000, 0)
+	testing.expect_value(t, cart_read(&c, 0x4000), u8(1))
+}
+
+@(test)
+test_mbc3_ram_bank :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+	data[0x0147] = 0x13
+	data[0x0149] = 0x03 // 32 KB (4 banks)
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	cart_write(&c, 0x0000, 0x0A) // enable
+	cart_write(&c, 0x4000, 0x02) // RAM bank 2
+	cart_write(&c, 0xA000, 0x77)
+	cart_write(&c, 0x4000, 0x00) // switch to RAM bank 0
+	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x00)) // bank 0 is separate, still zeroed
+	cart_write(&c, 0x4000, 0x02) // back to bank 2
+	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x77)) // bank 2 retained its value
+}
+
+// Selecting an RTC register (>=0x08) returns the stub, not RAM/garbage.
+@(test)
+test_mbc3_rtc_stub :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+	data[0x0147] = 0x13
+	data[0x0149] = 0x02 // 8 KB
+	c, _ := cart_from_bytes(data)
+	defer cart_destroy(&c)
+
+	cart_write(&c, 0x0000, 0x0A) // enable
+	cart_write(&c, 0x4000, 0x08) // select RTC seconds
+	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x00)) // stub, no crash
+	cart_write(&c, 0xA000, 0x42) // RTC write ignored (no crash)
+}
