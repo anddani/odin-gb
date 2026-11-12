@@ -1,5 +1,6 @@
 package mmu
 
+import "../apu"
 import "../cart"
 import "../joypad"
 import "../ppu"
@@ -10,6 +11,7 @@ Mmu :: struct {
 	timer:  ^timer.Timer,
 	ppu:    ^ppu.Ppu,
 	joypad: ^joypad.Joypad,
+	apu:    ^apu.Apu,
 	vram:   [1][0x2000]u8,
 	wram:   [2][0x1000]u8,
 	oam:    [0xA0]u8,
