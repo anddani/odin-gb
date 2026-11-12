@@ -299,3 +299,54 @@ test_apu_drain_empties :: proc(t: ^testing.T) {
 	n2 := apu_drain(&a, out[:])
 	testing.expect_value(t, n2, 0) // nothing left
 }
+
+// --- Channel 1 sweep ---
+
+@(test)
+test_sweep_slides_down :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF10, 0x19) // NR10: period 1, down (bit3), shift 1
+	apu_write(&a, 0xFF12, 0xF0) // NR12: DAC on
+	apu_write(&a, 0xFF13, 0x00) // freq low
+	apu_write(&a, 0xFF14, 0x84) // trigger, freq high -> freq 0x400 = 1024
+	testing.expect_value(t, a.ch1.sweep_shadow, 1024)
+	clock_sweep(&a) // timer 1->0, step: 1024 - (1024>>1) = 512
+	testing.expect_value(t, a.ch1.freq, 512)
+}
+
+@(test)
+test_sweep_up_overflow_disables :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF10, 0x11) // period 1, UP, shift 1
+	apu_write(&a, 0xFF12, 0xF0)
+	apu_write(&a, 0xFF13, 0xFF) // freq low
+	apu_write(&a, 0xFF14, 0x87) // trigger, freq high 7 -> freq 0x7FF = 2047
+	// 2047 + (2047>>1)=3070 > 2047 -> overflow
+	clock_sweep(&a)
+	testing.expect(t, !a.ch1.enabled, "sweep overflow disables channel")
+}
+
+@(test)
+test_sweep_immediate_overflow_on_trigger :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF10, 0x01) // period 0, up, shift 1
+	apu_write(&a, 0xFF12, 0xF0)
+	apu_write(&a, 0xFF13, 0xFF)
+	apu_write(&a, 0xFF14, 0x87) // trigger: shift>0 -> immediate calc, 2047+1023>2047 overflow
+	testing.expect(t, !a.ch1.enabled, "trigger-time overflow disables immediately")
+}
+
+@(test)
+test_sweep_disabled_no_slide :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF10, 0x00) // period 0, shift 0 -> sweep inert
+	apu_write(&a, 0xFF12, 0xF0)
+	apu_write(&a, 0xFF13, 0x00)
+	apu_write(&a, 0xFF14, 0x84) // trigger, freq 1024
+	clock_sweep(&a)
+	testing.expect_value(t, a.ch1.freq, 1024) // unchanged
+}
