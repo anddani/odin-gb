@@ -73,7 +73,6 @@ main :: proc() {
 	audio_apu = &gb.apu
 	rl.SetAudioStreamCallback(stream, audio_callback)
 	rl.PlayAudioStream(stream)
-	buf: [4096]i16
 
 	for !rl.WindowShouldClose() {
 		dirs: u8 = 0
