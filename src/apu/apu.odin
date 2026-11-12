@@ -8,6 +8,20 @@ Apu :: struct {
 	power:      bool,
 	fs_counter: int,
 	fs_step:    u8,
+	ch2:        Channel,
+}
+
+Channel :: struct {
+	enabled:       bool,
+	freq_timer:    int,
+	duty:          u8,
+	duty_pos:      u8,
+	length:        int,
+	length_enable: bool,
+	volume:        u8,
+	env_timer:     int,
+	env_period:    u8,
+	env_add:       bool,
 }
 
 apu_step :: proc(apu: ^Apu, cycles: int) {
