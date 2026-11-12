@@ -1,5 +1,9 @@
 package cart
 
+set_ram_enable :: proc(cart: ^Cart, value: byte) {
+	cart.ram_enable = (value & 0x0F) == 0x0A
+}
+
 ram_write :: proc(cart: ^Cart, addr: u16, value: byte) {
 	if cart.ram_enable && len(cart.ram) > 0 {
 		off := cart.ram_bank * 0x2000 + int(addr - 0xA000)
@@ -17,7 +21,7 @@ cart_write_none :: proc(cart: ^Cart, addr: u16, value: byte) {
 cart_write_mbc1 :: proc(cart: ^Cart, addr: u16, value: byte) {
 	switch {
 	case addr < 0x2000:
-		cart.ram_enable = (value & 0x0F) == 0x0A
+		set_ram_enable(cart, value)
 
 	case addr < 0x4000:
 		lo := int(value & 0x1F)
@@ -45,7 +49,7 @@ cart_write_mbc1 :: proc(cart: ^Cart, addr: u16, value: byte) {
 cart_write_mbc3 :: proc(cart: ^Cart, addr: u16, value: byte) {
 	switch {
 	case addr < 0x2000:
-		cart.ram_enable = (value & 0x0F) == 0x0A
+		set_ram_enable(cart, value)
 
 	case addr < 0x4000:
 		rom_bank := int(value & 0x7F)
@@ -70,7 +74,7 @@ cart_write_mbc3 :: proc(cart: ^Cart, addr: u16, value: byte) {
 cart_write_mbc5 :: proc(cart: ^Cart, addr: u16, value: byte) {
 	switch {
 	case addr < 0x2000:
-		cart.ram_enable = (value & 0x0F) == 0x0A
+		set_ram_enable(cart, value)
 
 	case addr < 0x3000:
 		cart.rom_bank = (cart.rom_bank & 0x100) | int(value)
