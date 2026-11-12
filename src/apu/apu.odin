@@ -1,10 +1,36 @@
 package apu
 
 NR52 :: 0xFF26
+FRAME_SQ_PERIOD :: 8192
 
 Apu :: struct {
-	regs:  [0x30]u8,
-	power: bool,
+	regs:       [0x30]u8,
+	power:      bool,
+	fs_counter: int,
+	fs_step:    u8,
+}
+
+apu_step :: proc(apu: ^Apu, cycles: int) {
+	if !apu.power {
+		return
+	}
+
+	apu.fs_counter += cycles
+	for apu.fs_counter >= FRAME_SQ_PERIOD {
+		apu.fs_counter -= FRAME_SQ_PERIOD
+
+		switch apu.fs_step {
+		case 0, 4:
+			clock_length(apu)
+		case 2, 6:
+			clock_length(apu)
+			clock_sweep(apu)
+		case 7:
+			clock_envelope(apu)
+		}
+
+		apu.fs_step = (apu.fs_step + 1) & 7
+	}
 }
 
 apu_read :: proc(apu: ^Apu, addr: u16) -> u8 {

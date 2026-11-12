@@ -25,6 +25,7 @@ mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
 		// Bit 2 requests timer interrupt
 		mmu.io[0x0F] |= 0x04
 	}
+	apu.apu_step(mmu.apu, cycles)
 }
 
 ppu_tick :: proc(mmu: ^Mmu, cycles: int) {
