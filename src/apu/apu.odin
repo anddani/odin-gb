@@ -200,5 +200,9 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 			ch4.enabled = false
 		}
 
+	case NR43:
+		ch4.noise_divisor = NOISE_DIVISORS[value & 7]
+		ch4.noise_shift = value >> 4
+		ch4.noise_width = value & 0x08 != 0
 	}
 }
