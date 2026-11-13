@@ -1,5 +1,7 @@
 package apu
 
+NOISE_DIVISORS := [8]int{8, 16, 32, 48, 64, 80, 96, 112}
+
 noise_step :: proc(ch: ^Channel, cycles: int) {
 	ch.freq_timer -= cycles
 	for ch.freq_timer <= 0 {
