@@ -186,5 +186,8 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 		if value & 0x80 != 0 {
 			wave_trigger(apu)
 		}
+
+	case NR41:
+		ch4.length = 64 - int(value & 0x3F)
 	}
 }
