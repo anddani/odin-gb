@@ -15,6 +15,7 @@ Cart :: struct {
 	ram_enable: bool,
 	mode:       byte,
 	save_path:  string,
+	cgb:        bool,
 }
 
 Mbc :: enum {
@@ -74,6 +75,7 @@ cart_from_bytes :: proc(data: []byte) -> (Cart, Cart_Error) {
 	c := Cart {
 		rom = slice.clone(data),
 	}
+	c.cgb = data[0x0143] & 0x80 != 0
 	c.mbc, c.battery = parse_cart_type(data[0x147])
 	ram_bytes := ram_size_from(data[0x0149])
 	if ram_bytes > 0 {
