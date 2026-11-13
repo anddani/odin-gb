@@ -62,6 +62,16 @@ apu_panning :: proc(apu: ^Apu) -> (left: int, right: int) {
 	return
 }
 
+apu_sample_push :: proc(apu: ^Apu, value: i16) {
+	next := (apu.sample_w + 1) % SAMPLE_BUF_SIZE
+	// Only push to samples if buffer is not full.
+	// If buffer is full, drop the sample.
+	if next != apu.sample_r {
+		apu.samples[apu.sample_w] = value
+		apu.sample_w = next
+	}
+}
+
 hp_filter :: proc(input: f32, cap: ^f32) -> f32 {
 	out := input - cap^
 	cap^ = input - out * 0.996
@@ -105,10 +115,8 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 		ls := i16(lf * SCALE)
 		rs := i16(rf * SCALE)
 
-		apu.samples[apu.sample_w] = ls
-		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
-		apu.samples[apu.sample_w] = rs
-		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
+		apu_sample_push(apu, ls)
+		apu_sample_push(apu, rs)
 	}
 
 	square_step(&apu.ch1, cycles)
