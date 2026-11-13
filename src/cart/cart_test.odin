@@ -358,3 +358,26 @@ test_mbc5_high_ram_bank :: proc(t: ^testing.T) {
 	cart_write(&c, 0xA000, 0x5E)
 	testing.expect_value(t, cart_read(&c, 0xA000), u8(0x5E))
 }
+
+// --- CGB flag (header 0x0143) ---
+
+@(test)
+test_cgb_flag :: proc(t: ^testing.T) {
+	data := make([]byte, 0x8000)
+	defer delete(data)
+
+	data[0x0143] = 0x80 // CGB-enhanced
+	c1, _ := cart_from_bytes(data)
+	defer cart_destroy(&c1)
+	testing.expect(t, c1.cgb, "0x80 -> CGB")
+
+	data[0x0143] = 0xC0 // CGB-only
+	c2, _ := cart_from_bytes(data)
+	defer cart_destroy(&c2)
+	testing.expect(t, c2.cgb, "0xC0 -> CGB")
+
+	data[0x0143] = 0x00 // DMG
+	c3, _ := cart_from_bytes(data)
+	defer cart_destroy(&c3)
+	testing.expect(t, !c3.cgb, "0x00 -> DMG")
+}
