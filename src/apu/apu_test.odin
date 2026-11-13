@@ -281,9 +281,10 @@ test_apu_produces_samples :: proc(t: ^testing.T) {
 	apu_write(&a, 0xFF16, 0x80) // duty 50%
 	apu_write(&a, 0xFF19, 0x87) // trigger
 	apu_step(&a, 4194304 / 60) // ~one frame of cycles
-	out: [2048]i16
+	out: [4096]i16
 	n := apu_drain(&a, out[:])
-	testing.expect(t, n > 700 && n < 900, "about 800 samples per frame") // 48000/60
+	// stereo: 2 i16 per frame-tick -> ~1600 per video frame (2 * 48000/60)
+	testing.expect(t, n > 1400 && n < 1800, "about 1600 stereo samples per frame")
 }
 
 @(test)
@@ -292,10 +293,10 @@ test_apu_drain_empties :: proc(t: ^testing.T) {
 	a.power = true
 	apu_write(&a, 0xFF17, 0xF0)
 	apu_write(&a, 0xFF19, 0x80)
-	apu_step(&a, 87 * 10) // ~10 samples
+	apu_step(&a, 87 * 10) // ~10 frame-ticks -> ~20 interleaved i16
 	out: [64]i16
 	n1 := apu_drain(&a, out[:])
-	testing.expect(t, n1 >= 9 && n1 <= 11, "drained ~10")
+	testing.expect(t, n1 >= 18 && n1 <= 22, "drained ~20 (stereo)")
 	n2 := apu_drain(&a, out[:])
 	testing.expect_value(t, n2, 0) // nothing left
 }
