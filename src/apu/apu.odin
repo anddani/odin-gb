@@ -28,6 +28,7 @@ Apu :: struct {
 	ch1:            Channel,
 	ch2:            Channel,
 	ch3:            Channel,
+	ch4:            Channel,
 	power:          bool,
 	fs_counter:     int,
 	fs_step:        u8,
