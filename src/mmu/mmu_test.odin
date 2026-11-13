@@ -100,3 +100,44 @@ test_oam_dma :: proc(t: ^testing.T) {
 	// a byte just past the DMA region must not be touched
 	testing.expect_value(t, m.oam[0x9F], u8(0x9F))
 }
+
+// --- CGB banking (Stage 1) ---
+
+@(test)
+test_vram_bank_switch :: proc(t: ^testing.T) {
+	m: Mmu
+	mmu_write(&m, 0xFF4F, 0x00) // VBK -> bank 0
+	mmu_write(&m, 0x8000, 0x11)
+	mmu_write(&m, 0xFF4F, 0x01) // VBK -> bank 1
+	mmu_write(&m, 0x8000, 0x22)
+	testing.expect_value(t, mmu_read(&m, 0x8000), u8(0x22)) // reading bank 1
+	mmu_write(&m, 0xFF4F, 0x00) // back to bank 0
+	testing.expect_value(t, mmu_read(&m, 0x8000), u8(0x11))
+	testing.expect_value(t, m.vram[0][0], u8(0x11))
+	testing.expect_value(t, m.vram[1][0], u8(0x22))
+}
+
+@(test)
+test_wram_svbk_bank_switch :: proc(t: ^testing.T) {
+	m: Mmu
+	mmu_write(&m, 0xFF70, 0x02) // SVBK -> bank 2
+	mmu_write(&m, 0xD000, 0xAA)
+	mmu_write(&m, 0xFF70, 0x03) // SVBK -> bank 3
+	mmu_write(&m, 0xD000, 0xBB)
+	mmu_write(&m, 0xFF70, 0x02)
+	testing.expect_value(t, mmu_read(&m, 0xD000), u8(0xAA)) // bank 2 retained
+	testing.expect_value(t, m.wram[2][0], u8(0xAA))
+	testing.expect_value(t, m.wram[3][0], u8(0xBB))
+}
+
+// SVBK 0 maps to bank 1; C000 stays fixed at bank 0.
+@(test)
+test_wram_svbk_quirk_and_fixed_bank :: proc(t: ^testing.T) {
+	m: Mmu
+	mmu_write(&m, 0xFF70, 0x00) // SVBK 0 -> bank 1
+	mmu_write(&m, 0xD000, 0x7E)
+	testing.expect_value(t, m.wram[1][0], u8(0x7E)) // went to bank 1, not 0
+
+	mmu_write(&m, 0xC000, 0x5A) // C000 always bank 0 regardless of SVBK
+	testing.expect_value(t, m.wram[0][0], u8(0x5A))
+}
