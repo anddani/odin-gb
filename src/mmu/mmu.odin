@@ -87,6 +87,10 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 			value = apu.apu_read(mmu.apu, addr)
 		case 0xFF40 ..= 0xFF4B:
 			value = ppu.ppu_read(mmu.ppu, addr)
+		case 0xFF4F:
+			value = mmu.vbk
+		case 0xFF70:
+			value = mmu.svbk
 		case:
 			value = mmu.io[addr - 0xFF00]
 		}
@@ -153,6 +157,10 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 			for i in 0 ..< 0xA0 {
 				mmu.oam[i] = mmu_read(mmu, base + u16(i))
 			}
+		case 0xFF4F:
+			mmu.vbk = value & 0x01
+		case 0xFF70:
+			mmu.svbk = value & 0x07
 		case:
 			mmu.io[addr - 0xFF00] = value
 		}
