@@ -117,7 +117,8 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 
 		// Check if there is space for both left and right
 		// sample before pushing the values.
-		if abs(apu.sample_r - apu.sample_w) >= 2 {
+		free := (apu.sample_r - apu.sample_w - 1 + SAMPLE_BUF_SIZE) % SAMPLE_BUF_SIZE
+		if free >= 2 {
 			apu_sample_push(apu, ls)
 			apu_sample_push(apu, rs)
 		}

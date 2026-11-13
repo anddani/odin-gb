@@ -459,3 +459,21 @@ test_noise_trigger :: proc(t: ^testing.T) {
 	testing.expect_value(t, a.ch4.lfsr, u16(0x7FFF)) // reset to all ones
 	testing.expect_value(t, a.ch4.volume, u8(15))
 }
+
+// Ring overflow: pushing past capacity must not corrupt (drops, no wrap-past-reader).
+@(test)
+test_ring_overflow_drops :: proc(t: ^testing.T) {
+	a: Apu
+	// fill well past capacity without draining
+	for i in 0 ..< SAMPLE_BUF_SIZE + 500 {
+		apu_sample_push(&a, i16(i))
+	}
+	// drain everything available; must be <= capacity-1 and strictly increasing by 1
+	out := make([]i16, SAMPLE_BUF_SIZE)
+	defer delete(out)
+	n := apu_drain(&a, out[:])
+	testing.expect(t, n <= SAMPLE_BUF_SIZE - 1, "never exceeds ring capacity")
+	for i in 1 ..< n {
+		testing.expect(t, out[i] == out[i - 1] + 1, "samples stay in order (no corruption)")
+	}
+}
