@@ -22,7 +22,8 @@ NR50 :: 0xFF24
 NR51 :: 0xFF25
 NR52 :: 0xFF26
 FRAME_SQ_PERIOD :: 8192
-CYCLES_PER_SAMPLE :: 87
+CPU_HZ :: 4194304
+SAMPLE_HZ :: 48000
 SAMPLE_BUF_SIZE :: 8192
 SCALE :: 50
 
@@ -100,9 +101,9 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 		apu.fs_step = (apu.fs_step + 1) & 7
 	}
 
-	apu.sample_counter += cycles
-	for apu.sample_counter >= CYCLES_PER_SAMPLE {
-		apu.sample_counter -= CYCLES_PER_SAMPLE
+	apu.sample_counter += cycles * SAMPLE_HZ
+	for apu.sample_counter >= CPU_HZ {
+		apu.sample_counter -= CPU_HZ
 
 		left, right := apu_panning(apu)
 
