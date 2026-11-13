@@ -22,8 +22,12 @@ write16 :: proc(b: ^Bus, addr: u16, value: u16) {
 }
 
 fetch8 :: proc(c: ^Cpu) -> u8 {
-	value := c.bus.read(c.bus.ctx, c.pc)
-	c.pc += 1
+	value := read8(&c.bus, c.pc)
+	if c.halt_bug {
+		c.halt_bug = false
+	} else {
+		c.pc += 1
+	}
 	return value
 }
 

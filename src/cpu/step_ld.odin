@@ -4,7 +4,13 @@ ld :: proc(c: ^Cpu, op: u8) -> int {
 
 	// Special handling for HALT operation
 	if op == 0x76 {
-		c.halt = true
+		ie := read8(&c.bus, 0xFFFF)
+		iff := read8(&c.bus, 0xFF0F)
+		if !c.ime && (ie & iff & 0x1F) != 0 {
+			c.halt_bug = true
+		} else {
+			c.halt = true
+		}
 		return 4
 	}
 
