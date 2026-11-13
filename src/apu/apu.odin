@@ -66,6 +66,7 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 
 	square_step(&apu.ch1, cycles)
 	square_step(&apu.ch2, cycles)
+	wave_step(&apu.ch3, cycles)
 }
 
 apu_drain :: proc(apu: ^Apu, out: []i16) -> int {
