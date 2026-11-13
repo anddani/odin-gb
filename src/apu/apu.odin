@@ -18,10 +18,13 @@ NR41 :: 0xFF20
 NR42 :: 0xFF21
 NR43 :: 0xFF22
 NR44 :: 0xFF23
+NR50 :: 0xFF24
+NR51 :: 0xFF25
 NR52 :: 0xFF26
 FRAME_SQ_PERIOD :: 8192
 CYCLES_PER_SAMPLE :: 87
 SAMPLE_BUF_SIZE :: 8192
+SCALE :: 50
 
 Apu :: struct {
 	regs:           [0x30]u8,
@@ -36,6 +39,33 @@ Apu :: struct {
 	samples:        [SAMPLE_BUF_SIZE]i16,
 	sample_w:       int,
 	sample_r:       int,
+	hp_cap_l:       f32,
+	hp_cap_r:       f32,
+}
+
+apu_panning :: proc(apu: ^Apu) -> (left: int, right: int) {
+	o1 := int(square_output(&apu.ch1))
+	o2 := int(square_output(&apu.ch2))
+	o3 := int(wave_output(apu))
+	o4 := int(noise_output(&apu.ch4))
+	nr51 := apu.regs[NR51 - 0xFF10]
+
+	if nr51 & 0x10 != 0 {left += o1}
+	if nr51 & 0x20 != 0 {left += o2}
+	if nr51 & 0x40 != 0 {left += o3}
+	if nr51 & 0x80 != 0 {left += o4}
+
+	if nr51 & 0x01 != 0 {right += o1}
+	if nr51 & 0x02 != 0 {right += o2}
+	if nr51 & 0x04 != 0 {right += o3}
+	if nr51 & 0x08 != 0 {right += o4}
+	return
+}
+
+hp_filter :: proc(input: f32, cap: ^f32) -> f32 {
+	out := input - cap^
+	cap^ = input - out * 0.996
+	return out
 }
 
 apu_step :: proc(apu: ^Apu, cycles: int) {
@@ -63,13 +93,21 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 	apu.sample_counter += cycles
 	for apu.sample_counter >= CYCLES_PER_SAMPLE {
 		apu.sample_counter -= CYCLES_PER_SAMPLE
-		mix :=
-			int(square_output(&apu.ch1)) +
-			int(square_output(&apu.ch2)) +
-			int(wave_output(apu)) +
-			int(noise_output(&apu.ch4))
-		s := i16((mix - 30) * 500)
-		apu.samples[apu.sample_w] = s
+
+		left, right := apu_panning(apu)
+
+		nr50 := apu.regs[NR50 - 0xFF10]
+		left *= int((nr50 >> 4) & 7) + 1
+		right *= int(nr50 & 7) + 1
+
+		lf := hp_filter(f32(left), &apu.hp_cap_l)
+		rf := hp_filter(f32(right), &apu.hp_cap_r)
+		ls := i16(lf * SCALE)
+		rs := i16(rf * SCALE)
+
+		apu.samples[apu.sample_w] = ls
+		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
+		apu.samples[apu.sample_w] = rs
 		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
 	}
 
