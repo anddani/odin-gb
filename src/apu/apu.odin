@@ -98,6 +98,7 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 	ch1 := &apu.ch1
 	ch2 := &apu.ch2
 	ch3 := &apu.ch3
+	ch4 := &apu.ch4
 	if addr == NR52 {
 		apu.power = (value & 0x80) != 0
 		if !apu.power {
@@ -189,5 +190,15 @@ apu_write :: proc(apu: ^Apu, addr: u16, value: u8) {
 
 	case NR41:
 		ch4.length = 64 - int(value & 0x3F)
+
+	case NR42:
+		ch4.env_period = value & 0x07
+		ch4.env_add = value & 0x08 != 0
+		ch4.env_initial = value >> 4
+		ch4.dac_on = value & 0xF8 != 0
+		if !ch4.dac_on {
+			ch4.enabled = false
+		}
+
 	}
 }
