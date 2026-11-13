@@ -350,3 +350,65 @@ test_sweep_disabled_no_slide :: proc(t: ^testing.T) {
 	clock_sweep(&a)
 	testing.expect_value(t, a.ch1.freq, 1024) // unchanged
 }
+
+// --- Channel 3 (wave) ---
+
+@(test)
+test_wave_output_nibbles :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch3.enabled = true
+	a.ch3.dac_on = true
+	a.ch3.wave_shift = 1 // 100%
+	a.regs[0x20] = 0xAB // Wave RAM FF30: high nibble 0xA (pos 0), low 0xB (pos 1)
+	a.ch3.wave_pos = 0
+	testing.expect_value(t, wave_output(&a), u8(0x0A)) // high nibble first
+	a.ch3.wave_pos = 1
+	testing.expect_value(t, wave_output(&a), u8(0x0B)) // low nibble
+}
+
+@(test)
+test_wave_volume_shift :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch3.enabled = true
+	a.ch3.dac_on = true
+	a.regs[0x20] = 0xC0 // pos 0 -> sample 0xC = 12
+	a.ch3.wave_pos = 0
+	a.ch3.wave_shift = 0;testing.expect_value(t, wave_output(&a), u8(0)) // mute
+	a.ch3.wave_shift = 1;testing.expect_value(t, wave_output(&a), u8(12)) // 100%
+	a.ch3.wave_shift = 2;testing.expect_value(t, wave_output(&a), u8(6)) // 50%
+	a.ch3.wave_shift = 3;testing.expect_value(t, wave_output(&a), u8(3)) // 25%
+}
+
+@(test)
+test_wave_silent_when_off :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch3.dac_on = false
+	a.ch3.enabled = true
+	a.regs[0x20] = 0xFF
+	a.ch3.wave_shift = 1
+	testing.expect_value(t, wave_output(&a), u8(0))
+}
+
+@(test)
+test_wave_step_x2_and_wrap :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch3.freq = 0 // period = (2048-0)*2 = 4096
+	a.ch3.freq_timer = 4096
+	a.ch3.wave_pos = 30
+	wave_step(&a.ch3, 4096)
+	testing.expect_value(t, a.ch3.wave_pos, u8(31))
+	wave_step(&a.ch3, 4096)
+	testing.expect_value(t, a.ch3.wave_pos, u8(0)) // wraps 31->0
+}
+
+@(test)
+test_wave_trigger :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF1A, 0x80) // NR30 DAC on
+	apu_write(&a, 0xFF1D, 0x00) // freq low
+	apu_write(&a, 0xFF1E, 0x84) // trigger, freq high -> 0x400=1024
+	testing.expect(t, a.ch3.enabled, "trigger enables with DAC on")
+	testing.expect_value(t, a.ch3.freq_timer, (2048 - 1024) * 2) // x2
+	testing.expect_value(t, a.ch3.wave_pos, u8(0))
+}
