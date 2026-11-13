@@ -115,8 +115,12 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 		ls := i16(lf * SCALE)
 		rs := i16(rf * SCALE)
 
-		apu_sample_push(apu, ls)
-		apu_sample_push(apu, rs)
+		// Check if there is space for both left and right
+		// sample before pushing the values.
+		if abs(apu.sample_r - apu.sample_w) >= 2 {
+			apu_sample_push(apu, ls)
+			apu_sample_push(apu, rs)
+		}
 	}
 
 	square_step(&apu.ch1, cycles)
