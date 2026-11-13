@@ -63,8 +63,12 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 	apu.sample_counter += cycles
 	for apu.sample_counter >= CYCLES_PER_SAMPLE {
 		apu.sample_counter -= CYCLES_PER_SAMPLE
-		mix := int(square_output(&apu.ch1)) + int(square_output(&apu.ch2)) + int(wave_output(apu))
-		s := i16((mix - 22) * 700)
+		mix :=
+			int(square_output(&apu.ch1)) +
+			int(square_output(&apu.ch2)) +
+			int(wave_output(apu)) +
+			int(noise_output(&apu.ch4))
+		s := i16((mix - 30) * 500)
 		apu.samples[apu.sample_w] = s
 		apu.sample_w = (apu.sample_w + 1) % SAMPLE_BUF_SIZE
 	}
@@ -72,6 +76,7 @@ apu_step :: proc(apu: ^Apu, cycles: int) {
 	square_step(&apu.ch1, cycles)
 	square_step(&apu.ch2, cycles)
 	wave_step(&apu.ch3, cycles)
+	noise_step(&apu.ch4, cycles)
 }
 
 apu_drain :: proc(apu: ^Apu, out: []i16) -> int {
