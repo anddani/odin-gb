@@ -57,8 +57,12 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 		value = mmu.wram[0][addr - 0xC000]
 
 	case 0xD000 ..= 0xDFFF:
-		// WRAM bank 1
-		value = mmu.wram[1][addr - 0xD000]
+		// WRAM bank 1-7
+		bank := int(mmu.svbk & 0x07)
+		if bank == 0 {
+			bank = 1
+		}
+		value = mmu.wram[bank][addr - 0xD000]
 
 	case 0xE000 ..= 0xFDFF:
 		// Echo RAM
@@ -115,8 +119,12 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 		mmu.wram[0][addr - 0xC000] = value
 
 	case 0xD000 ..= 0xDFFF:
-		// WRAM bank 1
-		mmu.wram[1][addr - 0xD000] = value
+		// WRAM bank 1-7
+		bank := int(mmu.svbk & 0x07)
+		if bank == 0 {
+			bank = 1
+		}
+		mmu.wram[bank][addr - 0xD000] = value
 
 	case 0xE000 ..= 0xFDFF:
 		// Echo RAM
