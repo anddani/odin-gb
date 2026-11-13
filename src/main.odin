@@ -28,9 +28,9 @@ audio_apu: ^apu.Apu
 
 audio_callback :: proc "c" (buffer_data: rawptr, frames: c.uint) {
 	context = runtime.default_context()
-	out := slice.from_ptr(cast(^i16)buffer_data, int(frames))
+	out := slice.from_ptr(cast(^i16)buffer_data, int(frames) * 2)
 	n := apu.apu_drain(audio_apu, out)
-	for i in n ..< int(frames) {
+	for i in n ..< int(frames) * 2 {
 		out[i] = 0
 	}
 }
@@ -69,7 +69,7 @@ main :: proc() {
 	texture := rl.LoadTextureFromImage(img)
 
 	rl.InitAudioDevice()
-	stream := rl.LoadAudioStream(48000, 16, 1)
+	stream := rl.LoadAudioStream(48000, 16, 2)
 	audio_apu = &gb.apu
 	rl.SetAudioStreamCallback(stream, audio_callback)
 	rl.PlayAudioStream(stream)
