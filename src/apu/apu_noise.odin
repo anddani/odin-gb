@@ -12,3 +12,11 @@ noise_step :: proc(ch: ^Channel, cycles: int) {
 		}
 	}
 }
+
+noise_output :: proc(ch: ^Channel) -> u8 {
+	if !ch.enabled {
+		return 0
+	}
+	bit := ~ch.lfsr & 1
+	return u8(bit) * ch.volume
+}
