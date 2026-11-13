@@ -12,12 +12,15 @@ Mmu :: struct {
 	ppu:    ^ppu.Ppu,
 	joypad: ^joypad.Joypad,
 	apu:    ^apu.Apu,
-	vram:   [1][0x2000]u8,
-	wram:   [2][0x1000]u8,
+	vram:   [2][0x2000]u8,
+	wram:   [8][0x1000]u8,
+	vbk:    u8,
+	svbk:   u8,
 	oam:    [0xA0]u8,
 	io:     [0x80]u8,
 	hram:   [0x7F]u8,
 	ie:     u8,
+	cgb:    bool,
 }
 
 mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
