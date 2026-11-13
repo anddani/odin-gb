@@ -140,3 +140,43 @@ test_fetch8_reads_and_advances_pc :: proc(t: ^testing.T) {
 	testing.expect_value(t, fetch8(&c), u8(0xBB))
 	testing.expect_value(t, c.pc, u16(0x0102))
 }
+
+// HALT bug: HALT with IME=0 and an interrupt pending does NOT halt, and the
+// byte after HALT is read twice (PC fails to increment once).
+@(test)
+test_halt_bug_double_fetch :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.ime = false
+	c.pc = 0x0100
+	m.data[0xFFFF] = 0x01 // IE: VBlank enabled
+	m.data[0xFF0F] = 0x01 // IF: VBlank pending -> condition for the bug
+	m.data[0x0100] = 0x76 // HALT
+	m.data[0x0101] = 0x3C // INC A
+
+	step(&c) // executes HALT -> sets halt_bug, PC now 0x0101
+	testing.expect(t, !c.halt, "HALT bug: does not actually halt")
+	testing.expect(t, c.halt_bug, "halt_bug armed")
+
+	c.regs[.A] = 0
+	step(&c) // INC A, but PC must NOT advance past 0x0101
+	testing.expect_value(t, c.regs[.A], u8(1))
+	testing.expect_value(t, c.pc, u16(0x0101)) // stuck -> byte re-read
+
+	step(&c) // INC A again (the double-read), now PC advances
+	testing.expect_value(t, c.regs[.A], u8(2))
+	testing.expect_value(t, c.pc, u16(0x0102))
+}
+
+// Without the bug condition (IME on, or nothing pending), HALT halts normally.
+@(test)
+test_halt_normal :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.ime = true
+	c.pc = 0x0100
+	m.data[0x0100] = 0x76 // HALT
+	step(&c)
+	testing.expect(t, c.halt, "normal HALT halts")
+	testing.expect(t, !c.halt_bug, "no halt bug when IME set")
+}
