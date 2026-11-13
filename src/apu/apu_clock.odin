@@ -14,5 +14,5 @@ clock_sweep :: proc(apu: ^Apu) {
 clock_envelope :: proc(apu: ^Apu) {
 	channel_envelope(&apu.ch1)
 	channel_envelope(&apu.ch2)
-	channel_envelope(&apu.ch3)
+	channel_envelope(&apu.ch4)
 }
