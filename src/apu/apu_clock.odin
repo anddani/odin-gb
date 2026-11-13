@@ -3,6 +3,7 @@ package apu
 clock_length :: proc(apu: ^Apu) {
 	channel_length(&apu.ch1)
 	channel_length(&apu.ch2)
+	channel_length(&apu.ch3)
 }
 
 clock_sweep :: proc(apu: ^Apu) {
