@@ -40,6 +40,7 @@ gb_init :: proc(gb: ^Gameboy, rom_path: string) -> cart.Cart_Error {
 		gb.mmu.ppu = &gb.ppu
 		gb.mmu.joypad = &gb.joypad
 		gb.mmu.apu = &gb.apu
+		gb.mmu.cgb = gb.cart.cgb
 		gb.ppu.vram = &gb.mmu.vram[0]
 		gb.ppu.oam = &gb.mmu.oam
 		gb.ppu.lcdc = 0x91
@@ -53,7 +54,7 @@ gb_init :: proc(gb: ^Gameboy, rom_path: string) -> cart.Cart_Error {
 		}
 		gb.cpu.pc = 0x0100
 		gb.cpu.sp = 0xFFFE
-		cpu.set_af(&gb.cpu, 0x01B0)
+		cpu.set_af(&gb.cpu, gb.cart.cgb ? 0x11B0 : 0x01B0)
 		cpu.set_bc(&gb.cpu, 0x0013)
 		cpu.set_de(&gb.cpu, 0x00D8)
 		cpu.set_hl(&gb.cpu, 0x014D)
