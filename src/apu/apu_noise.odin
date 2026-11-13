@@ -20,3 +20,14 @@ noise_output :: proc(ch: ^Channel) -> u8 {
 	bit := ~ch.lfsr & 1
 	return u8(bit) * ch.volume
 }
+
+noise_trigger :: proc(ch: ^Channel) {
+	ch.enabled = ch.dac_on
+	if ch.length == 0 {
+		ch.length = 64
+	}
+	ch.freq_timer = ch.noise_divisor << uint(ch.noise_shift)
+	ch.lfsr = 0x7FFF
+	ch.volume = ch.env_initial
+	ch.env_timer = int(ch.env_period)
+}
