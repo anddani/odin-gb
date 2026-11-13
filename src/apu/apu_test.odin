@@ -412,3 +412,49 @@ test_wave_trigger :: proc(t: ^testing.T) {
 	testing.expect_value(t, a.ch3.freq_timer, (2048 - 1024) * 2) // x2
 	testing.expect_value(t, a.ch3.wave_pos, u8(0))
 }
+
+// --- Channel 4 (noise) ---
+
+@(test)
+test_noise_output_inverted :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch4.enabled = true
+	a.ch4.volume = 10
+	a.ch4.lfsr = 0xFFFE // low bit 0 -> inverted = 1 -> output volume
+	testing.expect_value(t, noise_output(&a.ch4), u8(10))
+	a.ch4.lfsr = 0xFFFF // low bit 1 -> inverted = 0 -> silent
+	testing.expect_value(t, noise_output(&a.ch4), u8(0))
+}
+
+@(test)
+test_noise_lfsr_feedback :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch4.noise_divisor = 8
+	a.ch4.noise_shift = 0
+	a.ch4.lfsr = 0x7FFF // all ones
+	a.ch4.freq_timer = 8
+	noise_step(&a.ch4, 8) // one clock
+	// bits0,1 both 1 -> xor 0 -> shift right, bit14 = 0 -> 0x3FFF
+	testing.expect_value(t, a.ch4.lfsr, u16(0x3FFF))
+}
+
+@(test)
+test_noise_step_divisor_zero_is_noop :: proc(t: ^testing.T) {
+	a: Apu
+	a.ch4.noise_divisor = 0 // unconfigured
+	a.ch4.freq_timer = -100
+	noise_step(&a.ch4, 100) // must NOT hang
+	testing.expect(t, true, "divisor 0 -> no-op, no infinite loop")
+}
+
+@(test)
+test_noise_trigger :: proc(t: ^testing.T) {
+	a: Apu
+	a.power = true
+	apu_write(&a, 0xFF21, 0xF0) // NR42 DAC on, volume 15
+	apu_write(&a, 0xFF22, 0x00) // NR43 divisor code 0 -> 8, shift 0
+	apu_write(&a, 0xFF23, 0x80) // NR44 trigger
+	testing.expect(t, a.ch4.enabled, "trigger enables")
+	testing.expect_value(t, a.ch4.lfsr, u16(0x7FFF)) // reset to all ones
+	testing.expect_value(t, a.ch4.volume, u8(15))
+}
