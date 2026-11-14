@@ -26,6 +26,7 @@ Ppu :: struct {
 	wy:          u8, // FF4A
 	wx:          u8, // FF4B
 	window_line: u8,
+	bg_prio:     [WIDTH]bool,
 	bg_cram:     [64]u8,
 	obj_cram:    [64]u8,
 	bgpi:        u8,
@@ -109,10 +110,11 @@ bg_pixel :: proc(
 }
 
 render_scanline :: proc(ppu: ^Ppu, ly: u8) {
-	if ppu.lcdc & 0b1 == 0 {
+	if !ppu.cgb && ppu.lcdc & 0b1 == 0 {
 		// BG enable, set shade 0 for whole row
 		ppu.framebuffer[ly] = resolve_dmg(0)
 		ppu.bg_idx = 0
+		ppu.bg_prio = false
 		return
 	}
 
@@ -148,6 +150,7 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 			idx, attr = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
 		}
 		ppu.bg_idx[x] = idx
+		ppu.bg_prio[x] = ppu.cgb && (attr & 0x80 != 0)
 		if ppu.cgb {
 			palette := int(attr & 0x07)
 			ppu.framebuffer[ly][x] = cram_color(ppu.bg_cram[:], palette, int(idx))
@@ -175,12 +178,14 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 		}
 	}
 
-	slice.sort_by(on_line[:count], proc(a, b: Sprite_Ref) -> bool {
-		if a.x != b.x {
-			return a.x < b.x
-		}
-		return a.idx < b.idx
-	})
+	if !ppu.cgb {
+		slice.sort_by(on_line[:count], proc(a, b: Sprite_Ref) -> bool {
+			if a.x != b.x {
+				return a.x < b.x
+			}
+			return a.idx < b.idx
+		})
+	}
 
 	covered: [WIDTH]bool
 	for s in 0 ..< count {
@@ -206,9 +211,10 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 			}
 		}
 
+		bank := ppu.cgb ? int((attr >> 3) & 1) : 0
 		addr := 0x8000 + int(tile) * 16 + row * 2
-		lo := ppu.vram[0][addr - 0x8000]
-		hi := ppu.vram[0][addr - 0x8000 + 1]
+		lo := ppu.vram[bank][addr - 0x8000]
+		hi := ppu.vram[bank][addr - 0x8000 + 1]
 
 		for col in 0 ..< 8 {
 			bit := attr & 0x20 != 0 ? col : 7 - col
@@ -227,13 +233,29 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 			}
 
 			covered[x] = true
-			if attr & 0x80 != 0 && ppu.bg_idx[x] != 0 {
-				continue
+			if ppu.cgb {
+				if ppu.lcdc & 0b1 != 0 &&
+				   ppu.bg_idx[x] != 0 &&
+				   (ppu.bg_prio[x] || attr & 0x80 != 0) {
+					continue
+				}
+			} else {
+				if attr & 0x80 != 0 && ppu.bg_idx[x] != 0 {
+					continue
+				}
 			}
 
-			palette := attr & 0x10 != 0 ? ppu.obp1 : ppu.obp0
-			shade := (palette >> (color_idx * 2)) & 0x3
-			ppu.framebuffer[ly][x] = resolve_dmg(shade)
+			if ppu.cgb {
+				ppu.framebuffer[ly][x] = cram_color(
+					ppu.obj_cram[:],
+					int(attr & 0x07),
+					int(color_idx),
+				)
+			} else {
+				palette := attr & 0x10 != 0 ? ppu.obp1 : ppu.obp0
+				shade := (palette >> (color_idx * 2)) & 0x3
+				ppu.framebuffer[ly][x] = resolve_dmg(shade)
+			}
 		}
 	}
 }
