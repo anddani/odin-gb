@@ -30,7 +30,8 @@ Ppu :: struct {
 	obj_cram:    [64]u8,
 	bgpi:        u8,
 	obpi:        u8,
-	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
+	cgb:         bool,
+	vram:        ^[2]VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
 	oam:         ^[0xA0]u8,
 	framebuffer: [HEIGHT][WIDTH]Color,
 	bg_idx:      [WIDTH]u8,
@@ -68,22 +69,43 @@ set_stat_flag :: proc(ppu: ^Ppu, mask: u8, on: bool) {
 	ppu.stat = on ? (ppu.stat | mask) : (ppu.stat &~ mask)
 }
 
-bg_pixel :: proc(ppu: ^Ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile: int) -> u8 {
-	tile_idx := ppu.vram[map_base + tile_row * 32 + tile_col - 0x8000]
+bg_pixel :: proc(
+	ppu: ^Ppu,
+	map_base, tile_col, tile_row, row_in_tile, col_in_tile: int,
+) -> (
+	idx: u8,
+	attr: u8,
+) {
+	map_off := map_base + tile_row * 32 + tile_col - 0x8000
+	title_idx := ppu.vram[0][map_off]
 
-	tile_addr: u16
-	if ppu.lcdc & 0b10000 != 0 {
-		tile_addr = 0x8000 + u16(tile_idx) * 16
-	} else {
-		tile_addr = u16(0x9000 + int(i8(tile_idx)) * 16)
+	data_bank := 0
+	row := row_in_tile
+	if ppu.cgb {
+		attr = ppu.vram[1][map_off]
+		data_bank = int((attr >> 3) & 1)
+		if attr & 0x40 != 0 {
+			row = 7 - row_in_tile
+		}
 	}
 
-	pixel_row_idx := tile_addr + u16(row_in_tile) * 2 - 0x8000
-	lo := ppu.vram[pixel_row_idx]
-	hi := ppu.vram[pixel_row_idx + 1]
+	title_addr: u16
+	if ppu.lcdc & 0b10000 != 0 {
+		title_addr = 0x8000 + u16(title_idx) * 16
+	} else {
+		title_addr = u16(0x9000 + int(i8(title_idx)) * 16)
+	}
+
+	pixel_row_idx := title_addr + u16(row) * 2 - 0x8000
+	lo := ppu.vram[data_bank][pixel_row_idx]
+	hi := ppu.vram[data_bank][pixel_row_idx + 1]
 
 	bit := u8(7 - col_in_tile)
-	return ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
+	if ppu.cgb && attr & 0x20 != 0 {
+		bit = u8(col_in_tile)
+	}
+	idx = ((hi >> bit) & 1) << 1 | ((lo >> bit) & 1)
+	return
 }
 
 render_scanline :: proc(ppu: ^Ppu, ly: u8) {
@@ -106,6 +128,7 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 		window_active := ppu.lcdc & 0x20 != 0 && int(ly) >= int(ppu.wy) && x >= (int(ppu.wx) - 7)
 
 		idx: u8
+		attr: u8
 		if window_active {
 			window_drawn = true
 			win_x := x - (int(ppu.wx) - 7)
@@ -115,18 +138,23 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 			tile_row := win_y / 8
 			row_in_tile := win_y % 8
 			col_in_tile := win_x % 8
-			idx = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
+			idx, attr = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
 		} else {
 			bg_x := (u8(x) + ppu.scx) & 0xFF
 			tile_col := int(bg_x / 8)
 			tile_row := int(bg_y / 8)
 			col_in_tile := int(bg_x % 8)
 			row_in_tile := int(bg_y % 8)
-			idx = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
+			idx, attr = bg_pixel(ppu, map_base, tile_col, tile_row, row_in_tile, col_in_tile)
 		}
-		shade := (ppu.bgp >> (idx * 2)) & 0x3
 		ppu.bg_idx[x] = idx
-		ppu.framebuffer[ly][x] = resolve_dmg(shade)
+		if ppu.cgb {
+			palette := int(attr & 0x07)
+			ppu.framebuffer[ly][x] = cram_color(ppu.bg_cram[:], palette, int(idx))
+		} else {
+			shade := (ppu.bgp >> (idx * 2)) & 0x3
+			ppu.framebuffer[ly][x] = resolve_dmg(shade)
+		}
 	}
 	if window_drawn {
 		ppu.window_line += 1
@@ -179,8 +207,8 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 		}
 
 		addr := 0x8000 + int(tile) * 16 + row * 2
-		lo := ppu.vram[addr - 0x8000]
-		hi := ppu.vram[addr - 0x8000 + 1]
+		lo := ppu.vram[0][addr - 0x8000]
+		hi := ppu.vram[0][addr - 0x8000 + 1]
 
 		for col in 0 ..< 8 {
 			bit := attr & 0x20 != 0 ? col : 7 - col
