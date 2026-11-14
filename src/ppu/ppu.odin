@@ -5,6 +5,13 @@ import "core:slice"
 WIDTH :: 160
 HEIGHT :: 144
 VRam :: [0x2000]u8
+Color :: [3]u8
+DMG_SHADES := [4]Color {
+	{0xFF, 0xFF, 0xFF},
+	{0xAA, 0xAA, 0xAA},
+	{0x55, 0x55, 0x55},
+	{0x00, 0x00, 0x00},
+}
 
 Ppu :: struct {
 	lcdc:        u8, // FF40
@@ -21,7 +28,7 @@ Ppu :: struct {
 	window_line: u8,
 	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
 	oam:         ^[0xA0]u8,
-	framebuffer: [HEIGHT][WIDTH]u8,
+	framebuffer: [HEIGHT][WIDTH]Color,
 	bg_idx:      [WIDTH]u8,
 	dots:        int,
 	mode:        u8,
@@ -30,6 +37,10 @@ Ppu :: struct {
 Sprite_Ref :: struct {
 	x:   u8,
 	idx: int,
+}
+
+resolve_dmg :: proc(shade: u8) -> Color {
+	return DMG_SHADES[shade]
 }
 
 sync_mode_to_stat :: proc(ppu: ^Ppu) {
@@ -98,7 +109,7 @@ render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 		}
 		shade := (ppu.bgp >> (idx * 2)) & 0x3
 		ppu.bg_idx[x] = idx
-		ppu.framebuffer[ly][x] = shade
+		ppu.framebuffer[ly][x] = resolve_dmg(shade)
 	}
 	if window_drawn {
 		ppu.window_line += 1
@@ -177,7 +188,7 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 
 			palette := attr & 0x10 != 0 ? ppu.obp1 : ppu.obp0
 			shade := (palette >> (color_idx * 2)) & 0x3
-			ppu.framebuffer[ly][x] = shade
+			ppu.framebuffer[ly][x] = resolve_dmg(shade)
 		}
 	}
 }
