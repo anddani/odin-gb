@@ -93,7 +93,8 @@ main :: proc() {
 
 		for y in 0 ..< HEIGHT {
 			for x in 0 ..< WIDTH {
-				fb[y][x] = SHADES[gb.ppu.framebuffer[y][x]]
+				c := gb.ppu.framebuffer[y][x]
+				fb[y][x] = rl.Color{c.r, c.g, c.b, 0xFF}
 			}
 		}
 		rl.UpdateTexture(texture, &fb)

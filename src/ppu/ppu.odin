@@ -72,7 +72,7 @@ bg_pixel :: proc(ppu: ^Ppu, map_base, tile_col, tile_row, row_in_tile, col_in_ti
 render_scanline :: proc(ppu: ^Ppu, ly: u8) {
 	if ppu.lcdc & 0b1 == 0 {
 		// BG enable, set shade 0 for whole row
-		ppu.framebuffer[ly] = 0
+		ppu.framebuffer[ly] = resolve_dmg(0)
 		ppu.bg_idx = 0
 		return
 	}

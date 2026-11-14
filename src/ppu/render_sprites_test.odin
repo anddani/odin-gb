@@ -54,7 +54,7 @@ test_sprite_x_flip :: proc(t: ^testing.T) {
 	vram[1] = 0x00
 	oam[0] = 16;oam[1] = 8;oam[2] = 0;oam[3] = 0x20 // X-flip
 	render_sprites(&p, 0)
-	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[0]) // moved away from col 0
+	testing.expect_value(t, p.framebuffer[0][0], Color{0, 0, 0}) // untouched: sprite moved away from col 0
 	testing.expect_value(t, p.framebuffer[0][7], DMG_SHADES[1]) // now at col 7
 }
 
@@ -70,7 +70,7 @@ test_sprite_bg_priority :: proc(t: ^testing.T) {
 	p.bg_idx[1] = 0 // BG color 0 at col 1
 	oam[0] = 16;oam[1] = 8;oam[2] = 0;oam[3] = 0x80 // BG priority bit
 	render_sprites(&p, 0)
-	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[0]) // hidden behind BG
+	testing.expect_value(t, p.framebuffer[0][0], Color{0, 0, 0}) // untouched: hidden behind BG
 	testing.expect_value(t, p.framebuffer[0][1], DMG_SHADES[1]) // shows over BG color 0
 }
 
