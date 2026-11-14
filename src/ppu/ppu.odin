@@ -26,6 +26,10 @@ Ppu :: struct {
 	wy:          u8, // FF4A
 	wx:          u8, // FF4B
 	window_line: u8,
+	bg_cram:     [64]u8,
+	obj_cram:    [64]u8,
+	bgpi:        u8,
+	obpi:        u8,
 	vram:        ^VRam, // TODO: Refactor to move ownership of VRAM to PPU instead of MMU
 	oam:         ^[0xA0]u8,
 	framebuffer: [HEIGHT][WIDTH]Color,
@@ -37,6 +41,19 @@ Ppu :: struct {
 Sprite_Ref :: struct {
 	x:   u8,
 	idx: int,
+}
+
+scale5 :: proc(v: u8) -> u8 {
+	return (v << 3) | (v >> 2)
+}
+
+cram_color :: proc(cram: []u8, palette, color_idx: int) -> Color {
+	base := palette * 8 + color_idx * 2
+	c := u16(cram[base]) | (u16(cram[base + 1]) << 8)
+	r5 := u8(c & 0x1F)
+	g5 := u8((c >> 5) & 0x1F)
+	b5 := u8((c >> 10) & 0x1F)
+	return Color{scale5(r5), scale5(g5), scale5(b5)}
 }
 
 resolve_dmg :: proc(shade: u8) -> Color {
@@ -284,6 +301,14 @@ ppu_read :: proc(ppu: ^Ppu, addr: u16) -> u8 {
 		result = ppu.wy
 	case 0xFF4B:
 		result = ppu.wx
+	case 0xFF68:
+		result = ppu.bgpi | 0x40
+	case 0xFF69:
+		result = ppu.bg_cram[ppu.bgpi & 0x3F]
+	case 0xFF6A:
+		result = ppu.obpi | 0x40
+	case 0xFF6B:
+		result = ppu.obj_cram[ppu.obpi & 0x3F]
 	}
 	return result
 }
@@ -310,5 +335,21 @@ ppu_write :: proc(ppu: ^Ppu, addr: u16, value: u8) {
 		ppu.wy = value
 	case 0xFF4B:
 		ppu.wx = value
+	case 0xFF68:
+		ppu.bgpi = value
+	case 0xFF69:
+		idx := ppu.bgpi & 0x3F
+		ppu.bg_cram[idx] = value
+		if ppu.bgpi & 0x80 != 0 {
+			ppu.bgpi = 0x80 | ((idx + 1) & 0x3F)
+		}
+	case 0xFF6A:
+		ppu.obpi = value
+	case 0xFF6B:
+		idx := ppu.obpi & 0x3F
+		ppu.obj_cram[idx] = value
+		if ppu.obpi & 0x80 != 0 {
+			ppu.obpi = 0x80 | ((idx + 1) & 0x3F)
+		}
 	}
 }

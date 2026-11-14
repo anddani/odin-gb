@@ -87,6 +87,8 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 			value = apu.apu_read(mmu.apu, addr)
 		case 0xFF40 ..= 0xFF4B:
 			value = ppu.ppu_read(mmu.ppu, addr)
+		case 0xFF68 ..= 0xFF6B:
+			value = ppu.ppu_read(mmu.ppu, addr)
 		case 0xFF4F:
 			value = mmu.vbk
 		case 0xFF70:
@@ -150,7 +152,7 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 			timer.timer_write(mmu.timer, addr, value)
 		case 0xFF10 ..= 0xFF3F:
 			apu.apu_write(mmu.apu, addr, value)
-		case 0xFF40 ..= 0xFF45, 0xFF47 ..= 0xFF4B:
+		case 0xFF40 ..= 0xFF45, 0xFF47 ..= 0xFF4B, 0xFF68 ..= 0xFF6B:
 			ppu.ppu_write(mmu.ppu, addr, value)
 		case 0xFF46:
 			base := u16(value) << 8
