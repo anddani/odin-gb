@@ -27,7 +27,7 @@ test_sprite_basic :: proc(t: ^testing.T) {
 	oam[3] = 0 // attr
 	render_sprites(&p, 0)
 	for i in 0 ..< 8 {
-		testing.expect_value(t, p.framebuffer[0][i], u8(1))
+		testing.expect_value(t, p.framebuffer[0][i], DMG_SHADES[1])
 	}
 }
 
@@ -37,12 +37,12 @@ test_sprite_transparency :: proc(t: ^testing.T) {
 	vram: VRam
 	oam: [0xA0]u8
 	p := setup(&vram, &oam)
-	p.framebuffer[0][0] = 3 // pretend BG drew shade 3 here
+	p.framebuffer[0][0] = DMG_SHADES[3] // pretend BG drew shade 3 here
 	vram[0] = 0x00 // tile all color index 0 (transparent)
 	vram[1] = 0x00
 	oam[0] = 16;oam[1] = 8;oam[2] = 0;oam[3] = 0
 	render_sprites(&p, 0)
-	testing.expect_value(t, p.framebuffer[0][0], u8(3)) // untouched
+	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[3]) // untouched
 }
 
 @(test)
@@ -54,8 +54,8 @@ test_sprite_x_flip :: proc(t: ^testing.T) {
 	vram[1] = 0x00
 	oam[0] = 16;oam[1] = 8;oam[2] = 0;oam[3] = 0x20 // X-flip
 	render_sprites(&p, 0)
-	testing.expect_value(t, p.framebuffer[0][0], u8(0)) // moved away from col 0
-	testing.expect_value(t, p.framebuffer[0][7], u8(1)) // now at col 7
+	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[0]) // moved away from col 0
+	testing.expect_value(t, p.framebuffer[0][7], DMG_SHADES[1]) // now at col 7
 }
 
 // BG-over-OBJ priority: sprite hidden where BG color index != 0.
@@ -70,8 +70,8 @@ test_sprite_bg_priority :: proc(t: ^testing.T) {
 	p.bg_idx[1] = 0 // BG color 0 at col 1
 	oam[0] = 16;oam[1] = 8;oam[2] = 0;oam[3] = 0x80 // BG priority bit
 	render_sprites(&p, 0)
-	testing.expect_value(t, p.framebuffer[0][0], u8(0)) // hidden behind BG
-	testing.expect_value(t, p.framebuffer[0][1], u8(1)) // shows over BG color 0
+	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[0]) // hidden behind BG
+	testing.expect_value(t, p.framebuffer[0][1], DMG_SHADES[1]) // shows over BG color 0
 }
 
 // OBP1 selected by attribute bit 4.
@@ -85,5 +85,5 @@ test_sprite_uses_obp1 :: proc(t: ^testing.T) {
 	vram[1] = 0x00
 	oam[0] = 16;oam[1] = 8;oam[2] = 0;oam[3] = 0x10 // OBP1
 	render_sprites(&p, 0)
-	testing.expect_value(t, p.framebuffer[0][0], u8(2)) // via OBP1
+	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[2]) // via OBP1
 }

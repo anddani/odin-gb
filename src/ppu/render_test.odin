@@ -20,7 +20,7 @@ test_render_bg_tile_row :: proc(t: ^testing.T) {
 
 	expected := [8]u8{0, 1, 2, 3, 0, 1, 2, 3}
 	for i in 0 ..< 8 {
-		testing.expect_value(t, p.framebuffer[0][i], expected[i])
+		testing.expect_value(t, p.framebuffer[0][i], DMG_SHADES[expected[i]])
 	}
 }
 
@@ -38,10 +38,10 @@ test_render_bg_through_bgp :: proc(t: ^testing.T) {
 
 	render_scanline(&p, 0)
 
-	testing.expect_value(t, p.framebuffer[0][0], u8(3)) // idx 0
-	testing.expect_value(t, p.framebuffer[0][1], u8(2)) // idx 1
-	testing.expect_value(t, p.framebuffer[0][2], u8(1)) // idx 2
-	testing.expect_value(t, p.framebuffer[0][3], u8(0)) // idx 3
+	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[3]) // idx 0
+	testing.expect_value(t, p.framebuffer[0][1], DMG_SHADES[2]) // idx 1
+	testing.expect_value(t, p.framebuffer[0][2], DMG_SHADES[1]) // idx 2
+	testing.expect_value(t, p.framebuffer[0][3], DMG_SHADES[0]) // idx 3
 }
 
 // ly=1 must read tile row 1 (byte offset 2/3), proving the *2 row stride.
@@ -59,7 +59,7 @@ test_render_bg_correct_tile_row :: proc(t: ^testing.T) {
 	render_scanline(&p, 1) // ly=1 -> rowInTile 1
 
 	for i in 0 ..< 8 {
-		testing.expect_value(t, p.framebuffer[1][i], u8(1))
+		testing.expect_value(t, p.framebuffer[1][i], DMG_SHADES[1])
 	}
 }
 
@@ -73,7 +73,7 @@ test_render_bg_disabled_blanks_row :: proc(t: ^testing.T) {
 	render_scanline(&p, 5)
 
 	for i in 0 ..< WIDTH {
-		testing.expect_value(t, p.framebuffer[5][i], u8(0))
+		testing.expect_value(t, p.framebuffer[5][i], DMG_SHADES[0])
 	}
 }
 
@@ -94,7 +94,7 @@ test_window_covers_row :: proc(t: ^testing.T) {
 	render_scanline(&p, 0)
 
 	for i in 0 ..< 8 {
-		testing.expect_value(t, p.framebuffer[0][i], u8(1))
+		testing.expect_value(t, p.framebuffer[0][i], DMG_SHADES[1])
 	}
 }
 
@@ -116,6 +116,6 @@ test_window_wx_boundary :: proc(t: ^testing.T) {
 
 	render_scanline(&p, 0)
 
-	testing.expect_value(t, p.framebuffer[0][0], u8(2)) // BG (left of window)
-	testing.expect_value(t, p.framebuffer[0][8], u8(1)) // window
+	testing.expect_value(t, p.framebuffer[0][0], DMG_SHADES[2]) // BG (left of window)
+	testing.expect_value(t, p.framebuffer[0][8], DMG_SHADES[1]) // window
 }
