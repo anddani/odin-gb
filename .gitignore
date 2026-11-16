@@ -12,3 +12,7 @@
 .envrc
 roms/
 .DS_Store
+
+# Web build artifacts
+web/odin-gb.wasm
+web/odin.js
