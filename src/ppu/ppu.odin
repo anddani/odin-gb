@@ -233,16 +233,13 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 			}
 
 			covered[x] = true
-			if ppu.cgb {
-				if ppu.lcdc & 0b1 != 0 &&
-				   ppu.bg_idx[x] != 0 &&
-				   (ppu.bg_prio[x] || attr & 0x80 != 0) {
-					continue
-				}
-			} else {
-				if attr & 0x80 != 0 && ppu.bg_idx[x] != 0 {
-					continue
-				}
+			if ppu.cgb &&
+			   ppu.lcdc & 0b1 != 0 &&
+			   ppu.bg_idx[x] != 0 &&
+			   (ppu.bg_prio[x] || attr & 0x80 != 0) {
+				continue
+			} else if !ppu.cgb && attr & 0x80 != 0 && ppu.bg_idx[x] != 0 {
+				continue
 			}
 
 			if ppu.cgb {
