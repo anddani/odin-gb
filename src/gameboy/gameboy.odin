@@ -30,38 +30,42 @@ gb_write :: proc(ctx: rawptr, addr: u16, value: u8) {
 	mmu.mmu_write(&gb.mmu, addr, value)
 }
 
-gb_init :: proc(gb: ^Gameboy, rom_path: string) -> cart.Cart_Error {
-	c, err := cart.cart_from_file(rom_path)
+gb_init_from_bytes :: proc(gb: ^Gameboy, rom: []byte) -> cart.Cart_Error {
+	c, err := cart.cart_from_bytes(rom)
 
 	if err == cart.Cart_Error.None {
-		gb.cart = c
-		gb.mmu.cart = &gb.cart
-		gb.mmu.timer = &gb.timer
-		gb.mmu.ppu = &gb.ppu
-		gb.mmu.joypad = &gb.joypad
-		gb.mmu.apu = &gb.apu
-		gb.mmu.cgb = gb.cart.cgb
-		gb.ppu.cgb = gb.cart.cgb
-		gb.ppu.vram = &gb.mmu.vram
-		gb.ppu.oam = &gb.mmu.oam
-		gb.ppu.lcdc = 0x91
-		gb.ppu.bgp = 0xFC
-		gb.ppu.obp0 = 0xFF
-		gb.ppu.obp1 = 0xFF
-		gb.cpu.bus = cpu.Bus {
-			ctx   = gb,
-			read  = gb_read,
-			write = gb_write,
-		}
-		gb.cpu.pc = 0x0100
-		gb.cpu.sp = 0xFFFE
-		cpu.set_af(&gb.cpu, gb.cart.cgb ? 0x11B0 : 0x01B0)
-		cpu.set_bc(&gb.cpu, 0x0013)
-		cpu.set_de(&gb.cpu, 0x00D8)
-		cpu.set_hl(&gb.cpu, 0x014D)
+		gb_init_cart(gb, c)
 	}
 
 	return err
+}
+
+gb_init_cart :: proc(gb: ^Gameboy, c: cart.Cart) {
+	gb.cart = c
+	gb.mmu.cart = &gb.cart
+	gb.mmu.timer = &gb.timer
+	gb.mmu.ppu = &gb.ppu
+	gb.mmu.joypad = &gb.joypad
+	gb.mmu.apu = &gb.apu
+	gb.mmu.cgb = gb.cart.cgb
+	gb.ppu.cgb = gb.cart.cgb
+	gb.ppu.vram = &gb.mmu.vram
+	gb.ppu.oam = &gb.mmu.oam
+	gb.ppu.lcdc = 0x91
+	gb.ppu.bgp = 0xFC
+	gb.ppu.obp0 = 0xFF
+	gb.ppu.obp1 = 0xFF
+	gb.cpu.bus = cpu.Bus {
+		ctx   = gb,
+		read  = gb_read,
+		write = gb_write,
+	}
+	gb.cpu.pc = 0x0100
+	gb.cpu.sp = 0xFFFE
+	cpu.set_af(&gb.cpu, gb.cart.cgb ? 0x11B0 : 0x01B0)
+	cpu.set_bc(&gb.cpu, 0x0013)
+	cpu.set_de(&gb.cpu, 0x00D8)
+	cpu.set_hl(&gb.cpu, 0x014D)
 }
 
 gb_run_frame :: proc(gb: ^Gameboy) {
