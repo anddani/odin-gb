@@ -258,16 +258,14 @@ render_sprites :: proc(ppu: ^Ppu, ly: u8) {
 }
 
 
-ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
-	vblank, stat := false, false
-
+ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (vblank: bool, stat: bool, hblank: bool) {
 	// LCD disabled
 	if ppu.lcdc & 0x80 == 0 {
 		ppu.dots = 0
 		ppu.ly = 0
 		ppu.mode = 0
 		sync_mode_to_stat(ppu)
-		return false, false
+		return
 	}
 
 	ppu.dots += cycles
@@ -308,6 +306,7 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 		ppu.mode = new_mode
 		sync_mode_to_stat(ppu)
 		if new_mode == 0 {
+			hblank = true
 			render_scanline(ppu, ppu.ly)
 			if ppu.lcdc & 0b10 != 0 {
 				render_sprites(ppu, ppu.ly)
@@ -320,7 +319,7 @@ ppu_step :: proc(ppu: ^Ppu, cycles: int) -> (bool, bool) {
 		}
 	}
 
-	return vblank, stat
+	return
 }
 
 ppu_read :: proc(ppu: ^Ppu, addr: u16) -> u8 {
