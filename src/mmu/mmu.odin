@@ -7,20 +7,72 @@ import "../ppu"
 import "../timer"
 
 Mmu :: struct {
-	cart:   ^cart.Cart,
-	timer:  ^timer.Timer,
-	ppu:    ^ppu.Ppu,
-	joypad: ^joypad.Joypad,
-	apu:    ^apu.Apu,
-	vram:   [2][0x2000]u8,
-	wram:   [8][0x1000]u8,
-	vbk:    u8,
-	svbk:   u8,
-	oam:    [0xA0]u8,
-	io:     [0x80]u8,
-	hram:   [0x7F]u8,
-	ie:     u8,
-	cgb:    bool,
+	cart:        ^cart.Cart,
+	timer:       ^timer.Timer,
+	ppu:         ^ppu.Ppu,
+	joypad:      ^joypad.Joypad,
+	apu:         ^apu.Apu,
+	vram:        [2][0x2000]u8,
+	wram:        [8][0x1000]u8,
+	vbk:         u8,
+	svbk:        u8,
+	oam:         [0xA0]u8,
+	io:          [0x80]u8,
+	hram:        [0x7F]u8,
+	ie:          u8,
+	cgb:         bool,
+	hdma1:       u8,
+	hdma2:       u8,
+	hdma3:       u8,
+	hdma4:       u8,
+	hdma_src:    u16,
+	hdma_dst:    u16,
+	hdma_blocks: u8,
+	hdma_active: bool,
+}
+
+hdma_copy_block :: proc(mmu: ^Mmu, src, dst: u16, n: int) {
+	for i in 0 ..< n {
+		b := mmu_read(mmu, src + u16(i))
+		mmu.vram[mmu.vbk][(int(dst - 0x8000) + i) & 0x1FFF] = b
+	}
+}
+
+hdma_trigger :: proc(mmu: ^Mmu, value: u8) {
+	if mmu.hdma_active && value & 0x80 == 0 {
+		mmu.hdma_active = false
+		return
+	}
+
+	blocks := (value & 0x7F) + 1
+	src := (u16(mmu.hdma1) << 8) | u16(mmu.hdma2 & 0xF0)
+	dst := 0x8000 | (u16(mmu.hdma3 & 0x1F) << 8) | u16(mmu.hdma4 & 0xF0)
+
+	if value & 0x80 == 0 {
+		// GDMA
+		hdma_copy_block(mmu, src, dst, int(blocks) * 16)
+		mmu.hdma_active = false
+	} else {
+		// HDMA
+		mmu.hdma_src = src
+		mmu.hdma_dst = dst
+		mmu.hdma_blocks = blocks
+		mmu.hdma_active = true
+	}
+}
+
+hdma_step_hblank :: proc(mmu: ^Mmu) {
+	if !mmu.hdma_active {
+		return
+	}
+
+	hdma_copy_block(mmu, mmu.hdma_src, mmu.hdma_dst, 16)
+	mmu.hdma_src += 16
+	mmu.hdma_dst += 16
+	mmu.hdma_blocks -= 1
+	if mmu.hdma_blocks == 0 {
+		mmu.hdma_active = false
+	}
 }
 
 mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
@@ -32,7 +84,7 @@ mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
 }
 
 ppu_tick :: proc(mmu: ^Mmu, cycles: int) {
-	vblank, stat := ppu.ppu_step(mmu.ppu, cycles)
+	vblank, stat, hblank := ppu.ppu_step(mmu.ppu, cycles)
 	if vblank {
 		mmu.io[0x0F] |= 0x01
 	}
@@ -91,6 +143,10 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 			value = ppu.ppu_read(mmu.ppu, addr)
 		case 0xFF4F:
 			value = mmu.vbk
+		case 0xFF51 ..= 0xFF54:
+			value = 0xFF
+		case 0xFF55:
+			value = mmu.hdma_active ? (mmu.hdma_blocks - 1) : 0xFF
 		case 0xFF70:
 			value = mmu.svbk
 		case:
@@ -161,6 +217,16 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 			}
 		case 0xFF4F:
 			mmu.vbk = value & 0x01
+		case 0xFF51:
+			mmu.hdma1 = value
+		case 0xFF52:
+			mmu.hdma2 = value
+		case 0xFF53:
+			mmu.hdma3 = value
+		case 0xFF54:
+			mmu.hdma4 = value
+		case 0xFF55:
+			hdma_trigger(mmu, value)
 		case 0xFF70:
 			mmu.svbk = value & 0x07
 		case:
