@@ -1,6 +1,5 @@
 package cart
 
-import "core:os"
 import "core:slice"
 
 MIN_ROM_SIZE :: 0x8000
@@ -84,25 +83,6 @@ cart_from_bytes :: proc(data: []byte) -> (Cart, Cart_Error) {
 	c.rom_bank = 1
 
 	return c, Cart_Error.None
-}
-
-cart_from_file :: proc(path: string) -> (Cart, Cart_Error) {
-	file_data, file_err := os.read_entire_file_from_path(path, context.allocator)
-	if file_err != nil {
-		return {}, Cart_Error.File_Unreadable
-	}
-	defer delete(file_data)
-
-	cart, cart_err := cart_from_bytes(file_data)
-
-	if cart_err != .None {
-		return cart, cart_err
-	}
-
-	cart_set_save_path(&cart, path)
-	cart_load_ram(&cart)
-
-	return cart, cart_err
 }
 
 cart_destroy :: proc(c: ^Cart) {
