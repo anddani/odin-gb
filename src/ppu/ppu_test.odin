@@ -49,7 +49,7 @@ test_ppu_vblank_fires_at_144 :: proc(t: ^testing.T) {
 	p.lcdc = 0x80
 	saw_vblank := false
 	for i in 0 ..< 144 {
-		vb, _ := ppu_step(&p, 456)
+		vb, _, _ := ppu_step(&p, 456)
 		if vb {saw_vblank = true}
 	}
 	testing.expect_value(t, p.ly, u8(144))
@@ -83,7 +83,7 @@ test_ppu_lcd_off_is_idle :: proc(t: ^testing.T) {
 	p: Ppu
 	p.lcdc = 0x00 // LCD disabled
 	p.ly = 50
-	vb, st := ppu_step(&p, 456)
+	vb, st, _ := ppu_step(&p, 456)
 	testing.expect_value(t, p.ly, u8(0)) // reset
 	testing.expect_value(t, p.mode, u8(0))
 	testing.expect(t, !vb && !st, "no interrupts while LCD off")
@@ -95,7 +95,7 @@ test_ppu_lyc_stat_interrupt :: proc(t: ^testing.T) {
 	p.lcdc = 0x80
 	p.lyc = 1
 	p.stat = 0x40 // LYC=LY interrupt enable
-	_, st := ppu_step(&p, 456) // LY 0 -> 1 == LYC
+	_, st, _ := ppu_step(&p, 456) // LY 0 -> 1 == LYC
 	testing.expect(t, st, "STAT interrupt on LYC=LY when enabled")
 	testing.expect(t, (p.stat & 0x04) != 0, "LYC=LY flag set")
 }
