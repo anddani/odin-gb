@@ -1,3 +1,4 @@
+#+build !js
 package timer
 
 import "core:testing"

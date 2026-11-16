@@ -1,3 +1,4 @@
+#+build !js
 package mmu
 
 import "core:testing"

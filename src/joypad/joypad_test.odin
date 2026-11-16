@@ -1,3 +1,4 @@
+#+build !js
 package joypad
 
 import "core:testing"

@@ -1,3 +1,4 @@
+#+build !js
 package apu
 
 import "core:testing"
