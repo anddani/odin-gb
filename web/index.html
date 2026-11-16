@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>odin-gb</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        gap: 1rem;
+        background: #111;
+        color: #ddd;
+        font-family: system-ui, sans-serif;
+      }
+      canvas {
+        width: min(640px, 100vw - 32px);
+        aspect-ratio: 160 / 144;
+        image-rendering: pixelated;
+        background: #000;
+      }
+      main {
+        display: grid;
+        gap: 1rem;
+        justify-items: center;
+        padding: 16px;
+      }
+      p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #999;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <canvas id="screen"></canvas>
+      <input id="rom" type="file" accept=".gb,.gbc" />
+      <p>Arrows: D-pad · X: A · Z: B · Enter: Start · Shift: Select</p>
+    </main>
+
+    <script src="odin.js"></script>
+    <script type="module">
+      import { createEmulator } from "./odin-gb.js";
+
+      const canvas = document.getElementById("screen");
+      const emu = await createEmulator({ canvas });
+
+      async function load(file) {
+        try {
+          await emu.loadRom(new Uint8Array(await file.arrayBuffer()));
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+
+      document.getElementById("rom").addEventListener("change", (e) => {
+        if (e.target.files[0]) load(e.target.files[0]);
+      });
+      document.addEventListener("dragover", (e) => e.preventDefault());
+      document.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (e.dataTransfer.files[0]) load(e.dataTransfer.files[0]);
+      });
+    </script>
+  </body>
+</html>
