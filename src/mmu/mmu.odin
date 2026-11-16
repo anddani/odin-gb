@@ -91,6 +91,9 @@ ppu_tick :: proc(mmu: ^Mmu, cycles: int) {
 	if stat {
 		mmu.io[0x0F] |= 0x02
 	}
+	if hblank {
+		hdma_step_hblank(mmu)
+	}
 }
 
 mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
