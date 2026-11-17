@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.svg" alt="odin-gb logo" width="180">
+</p>
+
 # Odin Game Boy
 
 A Game Boy Color emulator written in Odin.
