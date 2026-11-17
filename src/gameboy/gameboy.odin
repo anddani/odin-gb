@@ -72,8 +72,13 @@ gb_run_frame :: proc(gb: ^Gameboy) {
 	cycles := 0
 	for cycles < FRAME_IN_TICKS {
 		used := cpu.step(&gb.cpu)
-		mmu.mmu_tick(&gb.mmu, used)
-		mmu.ppu_tick(&gb.mmu, used)
-		cycles += used
+		if gb.cpu.stopped {
+			gb.cpu.stopped = false
+			mmu.mmu_try_speed_switch(&gb.mmu)
+		}
+		real := gb.mmu.double_speed ? used / 2 : used
+		mmu.mmu_tick(&gb.mmu, used, real)
+		mmu.ppu_tick(&gb.mmu, real)
+		cycles += real
 	}
 }

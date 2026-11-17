@@ -35,6 +35,7 @@ Cpu :: struct {
 	ime:         bool,
 	ime_pending: bool,
 	halt_bug:    bool,
+	stopped:     bool,
 }
 
 service_interrupt :: proc(c: ^Cpu, iff: u8, pending: u8) -> int {

@@ -82,7 +82,7 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 			break
 		}
 		result.cycles += used
-		mmu.mmu_tick(&m.mmu, used) // advance the timer, raising IF bit 2 on overflow
+		mmu.mmu_tick(&m.mmu, used, used) // advance the timer, raising IF bit 2 on overflow
 
 		// Only rescan the serial text when new bytes have arrived.
 		if m.serial.n != last_n {
@@ -96,6 +96,12 @@ run_blargg_serial :: proc(rom_path: string) -> (result: Run_Result, err: cart.Ca
 	}
 
 	// Surface whatever the ROM printed so failures are legible.
-	fmt.printf("[%s] status=%v cycles=%d\n%s\n", rom_path, result.status, result.cycles, serial_text(&m.serial))
+	fmt.printf(
+		"[%s] status=%v cycles=%d\n%s\n",
+		rom_path,
+		result.status,
+		result.cycles,
+		serial_text(&m.serial),
+	)
 	return
 }

@@ -49,6 +49,7 @@ misc :: proc(c: ^Cpu, op: u8) -> int {
 		// STOP 0x10
 		case 2:
 			fetch8(c)
+			c.stopped = true
 			cycle_count = 4
 
 		case 3:

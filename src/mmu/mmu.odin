@@ -7,28 +7,30 @@ import "../ppu"
 import "../timer"
 
 Mmu :: struct {
-	cart:        ^cart.Cart,
-	timer:       ^timer.Timer,
-	ppu:         ^ppu.Ppu,
-	joypad:      ^joypad.Joypad,
-	apu:         ^apu.Apu,
-	vram:        [2][0x2000]u8,
-	wram:        [8][0x1000]u8,
-	vbk:         u8,
-	svbk:        u8,
-	oam:         [0xA0]u8,
-	io:          [0x80]u8,
-	hram:        [0x7F]u8,
-	ie:          u8,
-	cgb:         bool,
-	hdma1:       u8,
-	hdma2:       u8,
-	hdma3:       u8,
-	hdma4:       u8,
-	hdma_src:    u16,
-	hdma_dst:    u16,
-	hdma_blocks: u8,
-	hdma_active: bool,
+	cart:         ^cart.Cart,
+	timer:        ^timer.Timer,
+	ppu:          ^ppu.Ppu,
+	joypad:       ^joypad.Joypad,
+	apu:          ^apu.Apu,
+	vram:         [2][0x2000]u8,
+	wram:         [8][0x1000]u8,
+	vbk:          u8,
+	svbk:         u8,
+	oam:          [0xA0]u8,
+	io:           [0x80]u8,
+	hram:         [0x7F]u8,
+	ie:           u8,
+	cgb:          bool,
+	hdma1:        u8,
+	hdma2:        u8,
+	hdma3:        u8,
+	hdma4:        u8,
+	hdma_src:     u16,
+	hdma_dst:     u16,
+	hdma_blocks:  u8,
+	hdma_active:  bool,
+	double_speed: bool,
+	key1_armed:   bool,
 }
 
 hdma_copy_block :: proc(mmu: ^Mmu, src, dst: u16, n: int) {
@@ -75,12 +77,19 @@ hdma_step_hblank :: proc(mmu: ^Mmu) {
 	}
 }
 
-mmu_tick :: proc(mmu: ^Mmu, cycles: int) {
-	if timer.timer_step(mmu.timer, cycles) {
+mmu_try_speed_switch :: proc(mmu: ^Mmu) {
+	if mmu.key1_armed {
+		mmu.double_speed = !mmu.double_speed
+		mmu.key1_armed = false
+	}
+}
+
+mmu_tick :: proc(mmu: ^Mmu, cpu_cycles, real_cycles: int) {
+	if timer.timer_step(mmu.timer, cpu_cycles) {
 		// Bit 2 requests timer interrupt
 		mmu.io[0x0F] |= 0x04
 	}
-	apu.apu_step(mmu.apu, cycles)
+	apu.apu_step(mmu.apu, real_cycles)
 }
 
 ppu_tick :: proc(mmu: ^Mmu, cycles: int) {
@@ -144,6 +153,8 @@ mmu_read :: proc(mmu: ^Mmu, addr: u16) -> byte {
 			value = ppu.ppu_read(mmu.ppu, addr)
 		case 0xFF68 ..= 0xFF6B:
 			value = ppu.ppu_read(mmu.ppu, addr)
+		case 0xFF4D:
+			value = (mmu.double_speed ? 0x80 : 0) | 0x7E | (mmu.key1_armed ? 0x01 : 0)
 		case 0xFF4F:
 			value = mmu.vbk
 		case 0xFF51 ..= 0xFF54:
@@ -218,6 +229,8 @@ mmu_write :: proc(mmu: ^Mmu, addr: u16, value: byte) {
 			for i in 0 ..< 0xA0 {
 				mmu.oam[i] = mmu_read(mmu, base + u16(i))
 			}
+		case 0xFF4D:
+			mmu.key1_armed = value & 0x01 != 0
 		case 0xFF4F:
 			mmu.vbk = value & 0x01
 		case 0xFF51:
