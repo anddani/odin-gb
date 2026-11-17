@@ -1,14 +1,18 @@
 # Odin Gameboy
 
-This project is a Gameboy Emulator
+A Gameboy Color emulator written in Odin.
 
 ## Running
+
+The following command runs the emulator in a window backed by Raylib:
 
 ```sh
 odin run src -- /path/to/rom.gb
 ```
 
 ## Running in the browser
+
+To build a wasm binary, rum the follow build script:
 
 ```sh
 ./build_web.sh                    # builds web/odin-gb.wasm and copies odin.js
