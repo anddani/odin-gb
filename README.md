@@ -1,6 +1,6 @@
-# Odin Gameboy
+# Odin Game Boy
 
-A Gameboy Color emulator written in Odin.
+A Game Boy Color emulator written in Odin.
 
 ## Running
 
@@ -31,3 +31,11 @@ import { createEmulator } from "./odin-gb.js";
 const emu = await createEmulator({ canvas: document.querySelector("canvas") });
 await emu.loadRom(romBytes); // call from a click/file-pick so audio can start
 ```
+## AI disclaimer
+
+**None** of the code in the `src/` directory has been generated using AI. This project built as a learning experience to understand how the Game Boy works.
+I explicitly instructed the coding agent to never suggest any code changes in `src/` and never suggest fixes in code review.
+The only way I allowed it to communicate was in written communication.
+
+A coding agent was used to ask clarifying questions, ask for sources,
+ask for code review and generating tests in the `tests/` directory, example in `examples/` and a performance benchmark script in `bench/`.
