@@ -181,3 +181,15 @@ test_halt_normal :: proc(t: ^testing.T) {
 	testing.expect(t, c.halt, "normal HALT halts")
 	testing.expect(t, !c.halt_bug, "no halt bug when IME set")
 }
+
+// STOP (0x10) raises the `stopped` flag so the system can commit a speed switch.
+@(test)
+test_stop_sets_stopped :: proc(t: ^testing.T) {
+	m: Test_Mem
+	c := make_test_cpu(&m)
+	c.pc = 0x0100
+	m.data[0x0100] = 0x10 // STOP
+	m.data[0x0101] = 0x00 // operand byte
+	step(&c)
+	testing.expect(t, c.stopped, "STOP sets the stopped flag")
+}
