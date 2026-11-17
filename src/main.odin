@@ -61,7 +61,7 @@ main :: proc() {
 
 	fmt.println("Cart rom len:", len(gb.cart.rom))
 
-	rl.InitWindow(WIDTH * SCALE, HEIGHT * SCALE, "odin-gb")
+	rl.InitWindow(WIDTH * SCALE, HEIGHT * SCALE, "odin-gbc")
 	rl.SetTargetFPS(FPS)
 
 	fb: Framebuffer
